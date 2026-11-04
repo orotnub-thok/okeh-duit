@@ -29,3 +29,262 @@
 
         <!-- Konten Utama -->
         <main class="p-4 max-w-md mx-auto space-y-6">
+            
+            <!-- Ringkasan Saldo Wallet -->
+            <section>
+                <div class="flex justify-between items-center mb-2">
+                    <h2 class="text-sm font-semibold text-slate-500">DAFTAR WALLET</h2>
+                    <button onclick="openWalletModal()" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded">+ Tambah Wallet</button>
+                </div>
+                <div id="walletList" class="grid grid-cols-2 gap-3"></div>
+            </section>
+
+            <!-- Form Tambah Transaksi -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-sm font-semibold text-slate-500 mb-3">TAMBAH TRANSAKSI BARU</h2>
+                <form id="txForm" onsubmit="submitTransaction(event)" class="space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-500">Tipe</label>
+                        <select id="txType" onchange="updateCategories()" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                            <option value="Expense">Pengeluaran (Expense)</option>
+                            <option value="Income">Pemasukan (Income)</option>
+                            <option value="Transfer">Transfer</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-slate-500" id="labelDari">Dari Wallet</label>
+                            <select id="txFrom" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+                        </div>
+                        <div id="wrapperKe" class="hidden">
+                            <label class="text-xs text-slate-500">Ke Wallet</label>
+                            <select id="txTo" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+                        </div>
+                    </div>
+
+                    <div id="wrapperKategori">
+                        <div class="flex justify-between items-center">
+                            <label class="text-xs text-slate-500">Kategori</label>
+                            <button type="button" onclick="openCategoryModal()" class="text-xs text-emerald-600 font-semibold">+ Kategori</button>
+                        </div>
+                        <select id="txCategory" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1"></select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-500">Jumlah</label>
+                        <input type="number" id="txAmount" required placeholder="0" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-500">Catatan (Opsional)</label>
+                        <input type="text" id="txNote" placeholder="Misal: Beli kopi" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-2 rounded-lg hover:bg-emerald-700 transition">Simpan Transaksi</button>
+                </form>
+            </section>
+
+            <!-- Riwayat Transaksi -->
+            <section>
+                <h2 class="text-sm font-semibold text-slate-500 mb-2">RIWAYAT TERAKHIR</h2>
+                <div id="txHistory" class="space-y-2"></div>
+            </section>
+        </main>
+    </div>
+
+    <!-- MODAL TAMBAH WALLET -->
+    <div id="walletModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4">
+            <h3 class="font-bold text-lg">Tambah Wallet Baru</h3>
+            <input type="text" id="newWalletName" placeholder="Nama Wallet (Misal: BCA)" class="w-full border p-2 rounded-lg text-sm">
+            <select id="newWalletCurrency" class="w-full border p-2 rounded-lg text-sm">
+                <option value="IDR">IDR (Rupiah)</option>
+                <option value="USD">USD (Dolar)</option>
+            </select>
+            <input type="number" id="newWalletInitial" placeholder="Saldo Awal" class="w-full border p-2 rounded-lg text-sm" value="0">
+            <div class="flex space-x-2">
+                <button onclick="closeWalletModal()" class="w-1/2 bg-slate-200 py-2 rounded-lg text-sm">Batal</button>
+                <button onclick="submitNewWallet()" class="w-1/2 bg-emerald-600 text-white py-2 rounded-lg text-sm">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH KATEGORI -->
+    <div id="categoryModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4">
+            <h3 class="font-bold text-lg">Tambah Kategori Baru</h3>
+            <input type="text" id="newCatName" placeholder="Nama Kategori (Misal: Internet)" class="w-full border p-2 rounded-lg text-sm">
+            <select id="newCatType" class="w-full border p-2 rounded-lg text-sm">
+                <option value="Expense">Expense (Pengeluaran)</option>
+                <option value="Income">Income (Pemasukan)</option>
+            </select>
+            <div class="flex space-x-2">
+                <button onclick="closeCategoryModal()" class="w-1/2 bg-slate-200 py-2 rounded-lg text-sm">Batal</button>
+                <button onclick="submitNewCategory()" class="w-1/2 bg-emerald-600 text-white py-2 rounded-lg text-sm">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbz2WOpvyd7Y66KzmXYf2g4kDIKYZQVseiYMy0YoNVo5b522-AyvIx-g_oLYnhJy-cql/exec";
+        let appData = { wallets: [], categories: [], transactions: [] };
+
+        async function handleLogin() {
+            const pin = document.getElementById('pinInput').value;
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
+            const json = await res.json();
+            if (json.success) {
+                document.getElementById('loginPage').classList.add('hidden');
+                document.getElementById('mainApp').classList.remove('hidden');
+                loadData();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        async function loadData() {
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
+            const json = await res.json();
+            if (json.success) {
+                appData = json;
+                renderApp();
+            }
+        }
+
+        function renderApp() {
+            const wList = document.getElementById('walletList');
+            wList.innerHTML = '';
+            appData.wallets.forEach(w => {
+                const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+                wList.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-400">${w['Nama Wallet']} (${w['Mata Uang']})</div>
+                        <div class="text-base font-bold text-slate-700">${w['Mata Uang'] === 'USD' ? '$' : 'Rp'} ${saldo}</div>
+                    </div>
+                `;
+            });
+
+            const selFrom = document.getElementById('txFrom');
+            const selTo = document.getElementById('txTo');
+            selFrom.innerHTML = ''; selTo.innerHTML = '';
+            appData.wallets.forEach(w => {
+                selFrom.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']}</option>`;
+                selTo.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']}</option>`;
+            });
+
+            updateCategories();
+
+            const historyEl = document.getElementById('txHistory');
+            historyEl.innerHTML = '';
+            [...appData.transactions].reverse().slice(0, 10).forEach(t => {
+                const jumlahFmt = Number(t['Jumlah'] || 0).toLocaleString('id-ID');
+                historyEl.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
+                        <div>
+                            <div class="font-bold text-slate-700">${t['Kategori'] || t['Tipe']}</div>
+                            <div class="text-xs text-slate-400">${t['Tanggal']} • ${t['Catatan'] || '-'}</div>
+                        </div>
+                        <div class="font-semibold ${t['Tipe'] === 'Income' ? 'text-emerald-600' : 'text-rose-600'}">
+                            ${t['Tipe'] === 'Income' ? '+' : '-'}${jumlahFmt}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateCategories() {
+            const type = document.getElementById('txType').value;
+            const catSelect = document.getElementById('txCategory');
+            const wrapperKe = document.getElementById('wrapperKe');
+            const wrapperKategori = document.getElementById('wrapperKategori');
+            const labelDari = document.getElementById('labelDari');
+
+            if (type === 'Transfer') {
+                wrapperKe.classList.remove('hidden');
+                wrapperKategori.classList.add('hidden');
+                labelDari.innerText = 'Dari Wallet';
+            } else {
+                wrapperKe.classList.add('hidden');
+                wrapperKategori.classList.remove('hidden');
+                labelDari.innerText = 'Wallet';
+                
+                catSelect.innerHTML = '';
+                appData.categories
+                    .filter(c => c['Tipe'] === type)
+                    .forEach(c => {
+                        catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
+                    });
+            }
+        }
+
+        function openWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+        function closeWalletModal() { document.getElementById('walletModal').classList.add('hidden'); }
+        function openCategoryModal() { document.getElementById('categoryModal').classList.remove('hidden'); }
+        function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+
+        async function submitNewWallet() {
+            const name = document.getElementById('newWalletName').value;
+            const currency = document.getElementById('newWalletCurrency').value;
+            const initial = document.getElementById('newWalletInitial').value;
+            if (!name) return alert('Nama wallet wajib diisi');
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'addWallet', name, currency, initial })
+            });
+            const json = await res.json();
+            if (json.success) {
+                closeWalletModal();
+                loadData();
+            } else {
+                alert(json.message);
+            }
+        }
+
+        async function submitNewCategory() {
+            const name = document.getElementById('newCatName').value;
+            const type = document.getElementById('newCatType').value;
+            if (!name) return alert('Nama kategori wajib diisi');
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'addCategory', name, type })
+            });
+            const json = await res.json();
+            if (json.success) {
+                closeCategoryModal();
+                loadData();
+            } else {
+                alert(json.message);
+            }
+        }
+
+        async function submitTransaction(e) {
+            e.preventDefault();
+            const type = document.getElementById('txType').value;
+            const data = {
+                action: 'addTransaction',
+                tipe: type,
+                dariWallet: document.getElementById('txFrom').value,
+                keWallet: type === 'Transfer' ? document.getElementById('txTo').value : '',
+                kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('txCategory').value,
+                jumlah: document.getElementById('txAmount').value,
+                catatan: document.getElementById('txNote').value,
+                tanggal: new Date().toISOString().split('T')[0]
+            };
+
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+            const json = await res.json();
+            if (json.success) {
+                alert('Transaksi berhasil disimpan!');
+                document.getElementById('txAmount').value = '';
+                document.getElementById('txNote').value = '';
+                loadData();
+            } else {
+                alert('Gagal: ' + json.message);
+            }
+        }
+    </script>
+</body>
+</html>
