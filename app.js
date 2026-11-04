@@ -8,7 +8,7 @@ window.onload = function() {
         showApp();
     }
 };
- 
+
 async function handleLogin() {
     const pin = document.getElementById('pinInput').value;
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
@@ -67,7 +67,7 @@ function renderApp() {
         summaryList.innerHTML += `
             <div onclick="openWalletDetail('${curr}')" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition">
                 <div class="text-xs text-slate-400 font-medium">Total (${curr})</div>
-                <div class="text-base font-bold text-slate-800">${symbol}${totalFmt}</div>
+                <div class="text-base font-bold text-slate-800">${symbol} ${totalFmt}</div>
                 <div class="text-[10px] text-emerald-600 mt-1 font-medium">Ketuk rincian &rarr;</div>
             </div>
         `;
@@ -116,9 +116,9 @@ function renderApp() {
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
                 <div>
                     <div class="font-bold text-slate-700">${kategori || tipe}</div>
-                    <div class="text-xs text-slate-400">${tanggal} •${catatan || '-'}</div>
+                    <div class="text-xs text-slate-400">${tanggal} • ${catatan || '-'}</div>
                 </div>
-                <div class="font-semibold ${colorClass}">${sign} Rp${jumlahFmt}</div>
+                <div class="font-semibold ${colorClass}">${sign} Rp ${jumlahFmt}</div>
             </div>
         `;
     });
@@ -157,7 +157,7 @@ function openWalletDetail(curr) {
                 <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border text-sm">
                     <div>
                         <div class="font-bold text-slate-700">${name}</div>
-                        <div class="text-xs text-slate-500">${symbol}${saldoFmt}</div>
+                        <div class="text-xs text-slate-500">${symbol} ${saldoFmt}</div>
                     </div>
                     <div class="flex space-x-1">
                         <button onclick="openEditWallet('${id}', '${name}', '${currVal}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
@@ -250,7 +250,7 @@ function renderWalletList() {
             <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border text-sm">
                 <div>
                     <div class="font-bold text-slate-700">${name}</div>
-                    <div class="text-xs text-slate-500">${symbol}${saldoFmt}</div>
+                    <div class="text-xs text-slate-500">${symbol} ${saldoFmt}</div>
                 </div>
                 <div class="flex space-x-1">
                     <button onclick="openEditWallet('${id}', '${name}', '${currVal}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
@@ -360,4 +360,156 @@ function renderCategoryList() {
         const type = c['Tipe'] || c['Type'] || '';
 
         content.innerHTML += `
-            <div class="flex
+            <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border text-sm">
+                <div>
+                    <span class="font-bold text-slate-700">${name}</span>
+                </div>
+                <div class="flex space-x-1">
+                    <button onclick="openEditCategory('${id}', '${name}', '${type}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    </button>
+                    <button onclick="deleteCategory('${id}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </button>
+                </div>
+            </div>
+        `;
+    });
+}
+
+function closeCategoryManagerModal() { 
+    document.getElementById('categoryManagerModal').classList.add('hidden'); 
+    const tabContainer = document.getElementById('catTabContainer');
+    if (tabContainer) tabContainer.remove();
+}
+
+function openEditCategory(id, name, type) {
+    document.getElementById('editCatId').value = id;
+    document.getElementById('editCatName').value = name;
+    document.getElementById('editCatType').value = type;
+    document.getElementById('editCategoryModal').classList.remove('hidden');
+}
+
+function closeEditCategoryModal() { document.getElementById('editCategoryModal').classList.add('hidden'); }
+
+async function submitEditCategory() {
+    const id = document.getElementById('editCatId').value;
+    const name = document.getElementById('editCatName').value;
+    const type = document.getElementById('editCatType').value;
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'editCategory', id, name, type }) });
+    const json = await res.json();
+    if (json.success) { closeEditCategoryModal(); closeCategoryManagerModal(); loadData(); } else { alert(json.message); }
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Yakin ingin menghapus kategori ini?')) return;
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteCategory', id }) });
+    const json = await res.json();
+    if (json.success) { closeCategoryManagerModal(); loadData(); } else { alert(json.message); }
+}
+
+function openTxModal(type) {
+    document.getElementById('txType').value = type;
+    const modalTitle = document.getElementById('txModalTitle');
+    const btnSave = document.getElementById('btnSaveTx');
+    const wrapperKe = document.getElementById('wrapperKe');
+    const wrapperKategori = document.getElementById('wrapperKategori');
+    const labelDari = document.getElementById('labelDari');
+    const catSelect = document.getElementById('txCategory');
+
+    if (type === 'Income') {
+        modalTitle.innerText = 'Tambah Pemasukan';
+        btnSave.className = 'w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Ke Wallet (Tujuan)';
+        wrapperKe.classList.add('hidden');
+        wrapperKategori.classList.remove('hidden');
+    } else if (type === 'Expense') {
+        modalTitle.innerText = 'Tambah Pengeluaran';
+        btnSave.className = 'w-1/2 bg-rose-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Dari Wallet (Sumber)';
+        wrapperKe.classList.add('hidden');
+        wrapperKategori.classList.remove('hidden');
+    } else if (type === 'Transfer') {
+        modalTitle.innerText = 'Transfer Antar Wallet';
+        btnSave.className = 'w-1/2 bg-blue-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Dari Wallet';
+        wrapperKe.classList.remove('hidden');
+        wrapperKategori.classList.add('hidden');
+    }
+
+    if (type !== 'Transfer') {
+        catSelect.innerHTML = '';
+        appData.categories
+            .filter(c => (c['Tipe'] || c['Type']) === type)
+            .sort((a, b) => {
+                const nameA = a['Nama Kategori'] || a['NamaKategori'] || '';
+                const nameB = b['Nama Kategori'] || b['NamaKategori'] || '';
+                return nameA.localeCompare(nameB);
+            })
+            .forEach(c => {
+                const name = c['Nama Kategori'] || c['NamaKategori'] || '';
+                catSelect.innerHTML += `<option value="${name}">${name}</option>`;
+            });
+    }
+
+    document.getElementById('txModal').classList.remove('hidden');
+}
+
+function closeTxModal() { document.getElementById('txModal').classList.add('hidden'); document.getElementById('txAmount').value = ''; document.getElementById('txNote').value = ''; }
+function openWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+function closeWalletModal() { document.getElementById('walletModal').classList.add('hidden'); }
+function openCategoryModal() { document.getElementById('categoryModal').classList.remove('hidden'); }
+function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+
+async function submitTransaction(e) {
+    e.preventDefault();
+    const type = document.getElementById('txType').value;
+    const data = {
+        action: 'addTransaction',
+        tipe: type,
+        dariWallet: document.getElementById('txFrom').value,
+        keWallet: type === 'Transfer' ? document.getElementById('txTo').value : '',
+        kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('txCategory').value,
+        jumlah: document.getElementById('txAmount').value,
+        catatan: document.getElementById('txNote').value,
+        tanggal: new Date().toISOString().split('T')[0]
+    };
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+    const json = await res.json();
+    if (json.success) { closeTxModal(); loadData(); } else { alert('Gagal: ' + json.message); }
+}
+
+async function submitNewWallet() {
+    const name = document.getElementById('newWalletName').value;
+    const currency = document.getElementById('newWalletCurrency').value;
+    const initial = document.getElementById('newWalletInitial').value;
+    if (!name) return alert('Nama wallet wajib diisi');
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addWallet', name, currency, initial }) });
+    const json = await res.json();
+    if (json.success) { 
+        closeWalletModal(); 
+        await loadData(); 
+        openWalletManagerModal(currency); 
+    } else { 
+        alert(json.message); 
+    }
+}
+
+async function submitNewCategory() {
+    const name = document.getElementById('newCatName').value;
+    const type = document.getElementById('newCatType').value;
+    if (!name) return alert('Nama kategori wajib diisi');
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addCategory', name, type }) });
+    const json = await res.json();
+    if (json.success) { 
+        closeCategoryModal(); 
+        await loadData(); 
+        openCategoryManagerModal(); 
+    } else { 
+        alert(json.message); 
+    }
+}
