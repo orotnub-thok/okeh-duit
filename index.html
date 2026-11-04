@@ -145,6 +145,10 @@
             <form id="txForm" onsubmit="submitTransaction(event)" class="space-y-3">
                 <input type="hidden" id="txType">
                 <div>
+                    <label class="text-xs text-slate-500 font-semibold">Tanggal Transaksi</label>
+                    <input type="date" id="txDate" required class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
                     <label class="text-xs text-slate-500 font-semibold" id="labelDari">Dari Wallet</label>
                     <select id="txFrom" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
                 </div>
