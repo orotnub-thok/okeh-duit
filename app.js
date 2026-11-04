@@ -8,7 +8,7 @@ window.onload = function() {
         showApp();
     }
 };
-
+ 
 async function handleLogin() {
     const pin = document.getElementById('pinInput').value;
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
