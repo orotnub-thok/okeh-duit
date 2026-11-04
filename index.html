@@ -115,4 +115,236 @@
     <div id="walletModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
             <h3 class="font-bold text-lg text-slate-800">Tambah Wallet Baru</h3>
-            <input type="text" id="newWalletName" placeholder
+            <input type="text" id="newWalletName" placeholder="Nama Wallet (Misal: BCA)" class="w-full border p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select id="newWalletCurrency" class="w-full border p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="IDR">IDR (Rupiah)</option>
+                <option value="USD">USD (Dolar)</option>
+            </select>
+            <input type="number" id="newWalletInitial" placeholder="Saldo Awal" class="w-full border p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500" value="0">
+            <div class="flex space-x-2">
+                <button onclick="closeWalletModal()" class="w-1/2 bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg text-sm">Batal</button>
+                <button onclick="submitNewWallet()" class="w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-emerald-700">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL TAMBAH KATEGORI -->
+    <div id="categoryModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-800">Tambah Kategori Baru</h3>
+            <input type="text" id="newCatName" placeholder="Nama Kategori (Misal: Internet)" class="w-full border p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            <select id="newCatType" class="w-full border p-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                <option value="Expense">Expense (Pengeluaran)</option>
+                <option value="Income">Income (Pemasukan)</option>
+            </select>
+            <div class="flex space-x-2">
+                <button onclick="closeCategoryModal()" class="w-1/2 bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg text-sm">Batal</button>
+                <button onclick="submitNewCategory()" class="w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-emerald-700">Simpan</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbxukY1rgcZ8p2Bfw70xBRotBLqdjEAhyETNpb3LlQvHhLIngY8fMSW_gaKiiCzn5Z7W/exec";
+        let appData = { wallets: [], categories: [], transactions: [] };
+
+        window.onload = function() {
+            if (localStorage.getItem('okeh_logged_in') === 'true') {
+                showApp();
+            }
+        };
+
+        async function handleLogin() {
+            const pin = document.getElementById('pinInput').value;
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
+            const json = await res.json();
+            if (json.success) {
+                localStorage.setItem('okeh_logged_in', 'true');
+                showApp();
+            } else {
+                document.getElementById('loginError').classList.remove('hidden');
+            }
+        }
+
+        function showApp() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadData();
+        }
+
+        async function loadData() {
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
+            const json = await res.json();
+            if (json.success) {
+                appData = json;
+                renderApp();
+            }
+        }
+
+        function renderApp() {
+            // Render Wallets
+            const wList = document.getElementById('walletList');
+            wList.innerHTML = '';
+            appData.wallets.forEach(w => {
+                const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+                wList.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
+                        <div class="text-xs text-slate-400 font-medium">${w['Nama Wallet']} (${w['Mata Uang']})</div>
+                        <div class="text-base font-bold text-slate-800">${w['Mata Uang'] === 'USD' ? '$' : 'Rp'} ${saldo}</div>
+                    </div>
+                `;
+            });
+
+            // Populate Wallet Options
+            const selFrom = document.getElementById('txFrom');
+            const selTo = document.getElementById('txTo');
+            selFrom.innerHTML = ''; selTo.innerHTML = '';
+            appData.wallets.forEach(w => {
+                selFrom.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']}</option>`;
+                selTo.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']}</option>`;
+            });
+
+            // Render Transactions History
+            const historyEl = document.getElementById('txHistory');
+            historyEl.innerHTML = '';
+            [...appData.transactions].reverse().slice(0, 10).forEach(t => {
+                const jumlahFmt = Number(t['Jumlah'] || 0).toLocaleString('id-ID');
+                const isIncome = t['Tipe'] === 'Income';
+                const isTransfer = t['Tipe'] === 'Transfer';
+                
+                let colorClass = 'text-rose-600';
+                let sign = '-';
+                if (isIncome) { colorClass = 'text-emerald-600'; sign = '+'; }
+                if (isTransfer) { colorClass = 'text-blue-600'; sign = '•'; }
+
+                historyEl.innerHTML += `
+                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
+                        <div>
+                            <div class="font-bold text-slate-700">${t['Kategori'] || t['Tipe']}</div>
+                            <div class="text-xs text-slate-400">${t['Tanggal']} • ${t['Catatan'] || '-'}</div>
+                        </div>
+                        <div class="font-semibold ${colorClass}">
+                            ${sign} Rp ${jumlahFmt}
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // AKSI MODAL TRANSAKSI
+        function openTxModal(type) {
+            document.getElementById('txType').value = type;
+            const modalTitle = document.getElementById('txModalTitle');
+            const btnSave = document.getElementById('btnSaveTx');
+            const wrapperKe = document.getElementById('wrapperKe');
+            const wrapperKategori = document.getElementById('wrapperKategori');
+            const labelDari = document.getElementById('labelDari');
+            const catSelect = document.getElementById('txCategory');
+
+            if (type === 'Income') {
+                modalTitle.innerText = 'Tambah Pemasukan';
+                btnSave.className = 'w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-emerald-700 transition';
+                labelDari.innerText = 'Ke Wallet (Tujuan)';
+                wrapperKe.classList.add('hidden');
+                wrapperKategori.classList.remove('hidden');
+            } else if (type === 'Expense') {
+                modalTitle.innerText = 'Tambah Pengeluaran';
+                btnSave.className = 'w-1/2 bg-rose-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-rose-700 transition';
+                labelDari.innerText = 'Dari Wallet (Sumber)';
+                wrapperKe.classList.add('hidden');
+                wrapperKategori.classList.remove('hidden');
+            } else if (type === 'Transfer') {
+                modalTitle.innerText = 'Transfer Antar Wallet';
+                btnSave.className = 'w-1/2 bg-blue-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-blue-700 transition';
+                labelDari.innerText = 'Dari Wallet';
+                wrapperKe.classList.remove('hidden');
+                wrapperKategori.classList.add('hidden');
+            }
+
+            // Populate Kategori sesuai tipe
+            if (type !== 'Transfer') {
+                catSelect.innerHTML = '';
+                appData.categories
+                    .filter(c => c['Tipe'] === type)
+                    .forEach(c => {
+                        catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
+                    });
+            }
+
+            document.getElementById('txModal').classList.remove('hidden');
+        }
+
+        function closeTxModal() {
+            document.getElementById('txModal').classList.add('hidden');
+            document.getElementById('txAmount').value = '';
+            document.getElementById('txNote').value = '';
+        }
+
+        function openWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+        function closeWalletModal() { document.getElementById('walletModal').classList.add('hidden'); }
+        function openCategoryModal() { document.getElementById('categoryModal').classList.remove('hidden'); }
+        function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+
+        async function submitTransaction(e) {
+            e.preventDefault();
+            const type = document.getElementById('txType').value;
+            const data = {
+                action: 'addTransaction',
+                tipe: type,
+                dariWallet: document.getElementById('txFrom').value,
+                keWallet: type === 'Transfer' ? document.getElementById('txTo').value : '',
+                kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('txCategory').value,
+                jumlah: document.getElementById('txAmount').value,
+                catatan: document.getElementById('txNote').value,
+                tanggal: new Date().toISOString().split('T')[0]
+            };
+
+            const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+            const json = await res.json();
+            if (json.success) {
+                closeTxModal();
+                loadData();
+            } else {
+                alert('Gagal: ' + json.message);
+            }
+        }
+
+        async function submitNewWallet() {
+            const name = document.getElementById('newWalletName').value;
+            const currency = document.getElementById('newWalletCurrency').value;
+            const initial = document.getElementById('newWalletInitial').value;
+            if (!name) return alert('Nama wallet wajib diisi');
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'addWallet', name, currency, initial })
+            });
+            const json = await res.json();
+            if (json.success) {
+                closeWalletModal();
+                loadData();
+            } else {
+                alert(json.message);
+            }
+        }
+
+        async function submitNewCategory() {
+            const name = document.getElementById('newCatName').value;
+            const type = document.getElementById('newCatType').value;
+            if (!name) return alert('Nama kategori wajib diisi');
+
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'addCategory', name, type })
+            });
+            const json = await res.json();
+            if (json.success) {
+                closeCategoryModal();
+                loadData();
+            } else {
+                alert(json.message);
+            }
+        }
+    </script>
+</body>
+</html>
