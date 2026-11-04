@@ -36,19 +36,34 @@ async function loadData() {
     }
 }
 
+// Fungsi bantu universal untuk mencari nilai properti tanpa peduli spasi & huruf kapital
+function findVal(obj, keywords) {
+    if (!obj) return '';
+    const keys = Object.keys(obj);
+    for (let kw of keywords) {
+        const cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
+        for (let k of keys) {
+            const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (cleanK.includes(cleanKw) || cleanKw.includes(cleanK)) {
+                if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
+                    return obj[k];
+                }
+            }
+        }
+    }
+    return '';
+}
+
 function renderApp() {
     const currencyTotals = {};
     const currencyWallets = {};
 
     appData.wallets.forEach(w => {
-        // Mengambil langsung dari nama kolom persis seperti di Google Sheets Bapak
-        const name = w['Nama Wallet'] || w['NamaWallet'] || '';
+        const name = findVal(w, ['namawallet', 'wallet', 'nama']);
         if (!name) return;
 
-        const curr = w['Mata Uang'] || w['MataUang'] || 'IDR';
-        
-        // Ambil Saldo Akhir, jika kosong/tidak ada ambil Saldo Awal
-        let saldo = Number(w['Saldo Akhir'] || w['SaldoAkhir'] || w['Saldo Awal'] || w['SaldoAwal'] || 0);
+        const curr = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
+        let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
 
         if (!currencyTotals[curr]) {
             currencyTotals[curr] = 0;
@@ -80,16 +95,16 @@ function renderApp() {
     selFrom.innerHTML = ''; selTo.innerHTML = '';
     
     const sortedWalletsForTx = [...appData.wallets]
-        .filter(w => (w['Nama Wallet'] || w['NamaWallet']))
+        .filter(w => findVal(w, ['namawallet', 'wallet', 'nama']))
         .sort((a, b) => {
-            const nameA = a['Nama Wallet'] || a['NamaWallet'] || '';
-            const nameB = b['Nama Wallet'] || b['NamaWallet'] || '';
+            const nameA = String(findVal(a, ['namawallet', 'wallet', 'nama']));
+            const nameB = String(findVal(b, ['namawallet', 'wallet', 'nama']));
             return nameA.localeCompare(nameB);
         });
 
     sortedWalletsForTx.forEach(w => {
-        const name = w['Nama Wallet'] || w['NamaWallet'];
-        const curr = w['Mata Uang'] || w['MataUang'] || 'IDR';
+        const name = findVal(w, ['namawallet', 'wallet', 'nama']);
+        const curr = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
         selFrom.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
         selTo.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
     });
@@ -97,17 +112,17 @@ function renderApp() {
     const historyEl = document.getElementById('txHistory');
     historyEl.innerHTML = '';
     [...appData.transactions].reverse().slice(0, 10).forEach(t => {
-        const jumlah = Number(t['Jumlah'] || t['Amount'] || 0);
+        const jumlah = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
         const jumlahFmt = jumlah.toLocaleString('id-ID');
-        const tipe = t['Tipe'] || t['Type'] || '';
-        const kategori = t['Kategori'] || t['Category'] || '';
-        const tanggal = t['Tanggal'] || t['Date'] || '';
-        const catatan = t['Catatan'] || t['Note'] || '';
+        const tipe = String(findVal(t, ['tipe', 'type']) || '');
+        const kategori = String(findVal(t, ['kategori', 'category']) || '');
+        const tanggal = String(findVal(t, ['tanggal', 'date']) || '');
+        const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
 
         if (!tipe && !jumlah) return;
 
-        const isIncome = tipe === 'Income';
-        const isTransfer = tipe === 'Transfer';
+        const isIncome = tipe.toLowerCase() === 'income';
+        const isTransfer = tipe.toLowerCase() === 'transfer';
         let colorClass = 'text-rose-600', sign = '-';
         if (isIncome) { colorClass = 'text-emerald-600'; sign = '+'; }
         if (isTransfer) { colorClass = 'text-blue-600'; sign = '•'; }
@@ -134,8 +149,8 @@ function openWalletDetail(curr) {
 
     const rawWallets = window.currencyWalletsData[curr] || [];
     const wallets = rawWallets.sort((a, b) => {
-        const nameA = a['Nama Wallet'] || a['NamaWallet'] || '';
-        const nameB = b['Nama Wallet'] || b['NamaWallet'] || '';
+        const nameA = String(findVal(a, ['namawallet', 'wallet', 'nama']));
+        const nameB = String(findVal(b, ['namawallet', 'wallet', 'nama']));
         return nameA.localeCompare(nameB);
     });
     
@@ -143,12 +158,12 @@ function openWalletDetail(curr) {
         contentEl.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada wallet untuk ${curr}</div>`;
     } else {
         wallets.forEach(w => {
-            const id = w['Wallet ID'] || w['WalletID'] || w['ID'] || '';
-            const name = w['Nama Wallet'] || w['NamaWallet'] || '';
+            const id = findVal(w, ['walletid', 'id', 'code']);
+            const name = findVal(w, ['namawallet', 'wallet', 'nama']);
             if (!name) return;
 
-            const currVal = w['Mata Uang'] || w['MataUang'] || curr;
-            let saldo = Number(w['Saldo Akhir'] || w['SaldoAkhir'] || w['Saldo Awal'] || w['SaldoAwal'] || 0);
+            const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || curr).toUpperCase();
+            let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
             
             const saldoFmt = saldo.toLocaleString('id-ID');
             const symbol = curr === 'USD' ? '$' : 'Rp';
@@ -191,8 +206,8 @@ function renderWalletList() {
     const contentEl = document.getElementById('walletDetailContent');
     
     const availableCurrencies = [...new Set(appData.wallets
-        .filter(w => (w['Nama Wallet'] || w['NamaWallet']))
-        .map(w => w['Mata Uang'] || w['MataUang'] || 'IDR'))];
+        .filter(w => findVal(w, ['namawallet', 'wallet', 'nama']))
+        .map(w => String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase()))];
     if (availableCurrencies.length === 0) availableCurrencies.push('IDR');
 
     let tabContainer = document.getElementById('walletTabContainer');
@@ -221,14 +236,14 @@ function renderWalletList() {
 
     const filteredWallets = appData.wallets
         .filter(w => {
-            const name = w['Nama Wallet'] || w['NamaWallet'];
+            const name = findVal(w, ['namawallet', 'wallet', 'nama']);
             if (!name) return false;
-            const c = w['Mata Uang'] || w['MataUang'] || 'IDR';
+            const c = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
             return c === currentWalletTab;
         })
         .sort((a, b) => {
-            const nameA = a['Nama Wallet'] || a['NamaWallet'] || '';
-            const nameB = b['Nama Wallet'] || b['NamaWallet'] || '';
+            const nameA = String(findVal(a, ['namawallet', 'wallet', 'nama']));
+            const nameB = String(findVal(b, ['namawallet', 'wallet', 'nama']));
             return nameA.localeCompare(nameB);
         });
 
@@ -238,10 +253,10 @@ function renderWalletList() {
     }
 
     filteredWallets.forEach(w => {
-        const id = w['Wallet ID'] || w['WalletID'] || w['ID'] || '';
-        const name = w['Nama Wallet'] || w['NamaWallet'] || '';
-        const currVal = w['Mata Uang'] || w['MataUang'] || currentWalletTab;
-        let saldo = Number(w['Saldo Akhir'] || w['SaldoAkhir'] || w['Saldo Awal'] || w['SaldoAwal'] || 0);
+        const id = findVal(w, ['walletid', 'id', 'code']);
+        const name = findVal(w, ['namawallet', 'wallet', 'nama']);
+        const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || currentWalletTab).toUpperCase();
+        let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
 
         const saldoFmt = saldo.toLocaleString('id-ID');
         const symbol = currentWalletTab === 'USD' ? '$' : 'Rp';
@@ -342,10 +357,10 @@ function renderCategoryList() {
     content.innerHTML = '';
 
     const filteredCategories = appData.categories
-        .filter(c => (c['Tipe'] || c['Type']) === currentCatTab)
+        .filter(c => String(findVal(c, ['tipe', 'type'])).toLowerCase() === currentCatTab.toLowerCase())
         .sort((a, b) => {
-            const nameA = a['Nama Kategori'] || a['NamaKategori'] || '';
-            const nameB = b['Nama Kategori'] || b['NamaKategori'] || '';
+            const nameA = String(findVal(a, ['namakategori', 'kategori', 'category', 'nama']));
+            const nameB = String(findVal(b, ['namakategori', 'kategori', 'category', 'nama']));
             return nameA.localeCompare(nameB);
         });
 
@@ -355,9 +370,9 @@ function renderCategoryList() {
     }
 
     filteredCategories.forEach(c => {
-        const id = c['Category ID'] || c['CategoryID'] || c['ID'] || '';
-        const name = c['Nama Kategori'] || c['NamaKategori'] || '';
-        const type = c['Tipe'] || c['Type'] || '';
+        const id = findVal(c, ['categoryid', 'id', 'code']);
+        const name = findVal(c, ['namakategori', 'kategori', 'category', 'nama']);
+        const type = findVal(c, ['tipe', 'type']);
 
         content.innerHTML += `
             <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border text-sm">
@@ -441,14 +456,14 @@ function openTxModal(type) {
     if (type !== 'Transfer') {
         catSelect.innerHTML = '';
         appData.categories
-            .filter(c => (c['Tipe'] || c['Type']) === type)
+            .filter(c => String(findVal(c, ['tipe', 'type'])).toLowerCase() === type.toLowerCase())
             .sort((a, b) => {
-                const nameA = a['Nama Kategori'] || a['NamaKategori'] || '';
-                const nameB = b['Nama Kategori'] || b['NamaKategori'] || '';
+                const nameA = String(findVal(a, ['namakategori', 'kategori', 'category', 'nama']));
+                const nameB = String(findVal(b, ['namakategori', 'kategori', 'category', 'nama']));
                 return nameA.localeCompare(nameB);
             })
             .forEach(c => {
-                const name = c['Nama Kategori'] || c['NamaKategori'] || '';
+                const name = findVal(c, ['namakategori', 'kategori', 'category', 'nama']);
                 catSelect.innerHTML += `<option value="${name}">${name}</option>`;
             });
     }
