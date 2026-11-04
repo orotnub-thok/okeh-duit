@@ -6,7 +6,7 @@ window.onload = function() {
         showApp();
     }
 };
- 
+
 async function handleLogin() {
     const pin = document.getElementById('pinInput').value;
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
@@ -184,4 +184,115 @@ function openEditCategory(id, name, type) {
     document.getElementById('editCatId').value = id;
     document.getElementById('editCatName').value = name;
     document.getElementById('editCatType').value = type;
-    document.getElementById('editCategoryModal').classList.remove
+    document.getElementById('editCategoryModal').classList.remove('hidden');
+}
+
+function closeEditCategoryModal() { document.getElementById('editCategoryModal').classList.add('hidden'); }
+
+async function submitEditCategory() {
+    const id = document.getElementById('editCatId').value;
+    const name = document.getElementById('editCatName').value;
+    const type = document.getElementById('editCatType').value;
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'editCategory', id, name, type }) });
+    const json = await res.json();
+    if (json.success) { closeEditCategoryModal(); closeCategoryManagerModal(); loadData(); } else { alert(json.message); }
+}
+
+async function deleteCategory(id) {
+    if (!confirm('Yakin ingin menghapus kategori ini?')) return;
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteCategory', id }) });
+    const json = await res.json();
+    if (json.success) { closeCategoryManagerModal(); loadData(); } else { alert(json.message); }
+}
+
+function openTxModal(type) {
+    document.getElementById('txType').value = type;
+    const modalTitle = document.getElementById('txModalTitle');
+    const btnSave = document.getElementById('btnSaveTx');
+    const wrapperKe = document.getElementById('wrapperKe');
+    const wrapperKategori = document.getElementById('wrapperKategori');
+    const labelDari = document.getElementById('labelDari');
+    const catSelect = document.getElementById('txCategory');
+
+    if (type === 'Income') {
+        modalTitle.innerText = 'Tambah Pemasukan';
+        btnSave.className = 'w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Ke Wallet (Tujuan)';
+        wrapperKe.classList.add('hidden');
+        wrapperKategori.classList.remove('hidden');
+    } else if (type === 'Expense') {
+        modalTitle.innerText = 'Tambah Pengeluaran';
+        btnSave.className = 'w-1/2 bg-rose-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Dari Wallet (Sumber)';
+        wrapperKe.classList.add('hidden');
+        wrapperKategori.classList.remove('hidden');
+    } else if (type === 'Transfer') {
+        modalTitle.innerText = 'Transfer Antar Wallet';
+        btnSave.className = 'w-1/2 bg-blue-600 text-white font-semibold py-2 rounded-lg text-sm';
+        labelDari.innerText = 'Dari Wallet';
+        wrapperKe.classList.remove('hidden');
+        wrapperKategori.classList.add('hidden');
+    }
+
+    if (type !== 'Transfer') {
+        catSelect.innerHTML = '';
+        appData.categories.filter(c => c['Tipe'] === type).forEach(c => {
+            catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
+        });
+    }
+
+    document.getElementById('txModal').classList.remove('hidden');
+}
+
+function closeTxModal() { document.getElementById('txModal').classList.add('hidden'); document.getElementById('txAmount').value = ''; document.getElementById('txNote').value = ''; }
+function openWalletModal() { document.getElementById('walletModal').classList.remove('hidden'); }
+function closeWalletModal() { document.getElementById('walletModal').classList.add('hidden'); }
+function openCategoryModal() { document.getElementById('categoryModal').classList.remove('hidden'); }
+function closeCategoryModal() { document.getElementById('categoryModal').classList.add('hidden'); }
+
+async function submitTransaction(e) {
+    e.preventDefault();
+    const type = document.getElementById('txType').value;
+    const data = {
+        action: 'addTransaction',
+        tipe: type,
+        dariWallet: document.getElementById('txFrom').value,
+        keWallet: type === 'Transfer' ? document.getElementById('txTo').value : '',
+        kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('txCategory').value,
+        jumlah: document.getElementById('txAmount').value,
+        catatan: document.getElementById('txNote').value,
+        tanggal: new Date().toISOString().split('T')[0]
+    };
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
+    const json = await res.json();
+    if (json.success) { closeTxModal(); loadData(); } else { alert('Gagal: ' + json.message); }
+}
+
+async function submitNewWallet() {
+    const name = document.getElementById('newWalletName').value;
+    const currency = document.getElementById('newWalletCurrency').value;
+    const initial = document.getElementById('newWalletInitial').value;
+    if (!name) return alert('Nama wallet wajib diisi');
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addWallet', name, currency, initial }) });
+    const json = await res.json();
+    if (json.success) { closeWalletModal(); loadData(); } else { alert(json.message); }
+}
+
+async function submitNewCategory() {
+    const name = document.getElementById('newCatName').value;
+    const type = document.getElementById('newCatType').value;
+    if (!name) return alert('Nama kategori wajib diisi');
+
+    const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addCategory', name, type }) });
+    const json = await res.json();
+    if (json.success) { 
+        closeCategoryModal(); 
+        await loadData(); 
+        openCategoryManagerModal(); 
+    } else { 
+        alert(json.message); 
+    }
+}
