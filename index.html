@@ -135,13 +135,26 @@
             const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'login', pin }) });
             const json = await res.json();
             if (json.success) {
-                document.getElementById('loginPage').classList.add('hidden');
-                document.getElementById('mainApp').classList.remove('hidden');
-                loadData();
+                // Simpan status login di browser agar tidak minta PIN terus
+                localStorage.setItem('okeh_logged_in', 'true');
+                showApp();
             } else {
                 document.getElementById('loginError').classList.remove('hidden');
             }
         }
+
+        function showApp() {
+            document.getElementById('loginPage').classList.add('hidden');
+            document.getElementById('mainApp').classList.remove('hidden');
+            loadData();
+        }
+
+        // Cek otomatis saat halaman pertama kali dibuka/di-refresh
+        window.onload = function() {
+            if (localStorage.getItem('okeh_logged_in') === 'true') {
+                showApp();
+            }
+        };
 
         async function loadData() {
             const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
