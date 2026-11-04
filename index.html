@@ -77,4 +77,21 @@
     </div>
 
     <!-- MODAL EDIT WALLET -->
-    <div id="editWalletModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center
+    <div id="editWalletModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
+            <h3 class="font-bold text-lg text-slate-800">Edit Wallet</h3>
+            <input type="hidden" id="editWalletId">
+            <div>
+                <label class="text-xs text-slate-500 font-semibold">Nama Wallet</label>
+                <input type="text" id="editWalletName" class="w-full border p-2 rounded-lg text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+            </div>
+            <div>
+                <label class="text-xs text-slate-500 font-semibold">Mata Uang</label>
+                <select id="editWalletCurrency" class="w-full border p-2 rounded-lg text-sm mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="IDR">IDR (Rupiah)</option>
+                    <option value="USD">USD (Dolar)</option>
+                </select>
+            </div>
+            <div class="flex space-x-2 pt-2">
+                <button onclick="closeEditWalletModal()" class="w-1/2 bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg text-sm">Batal</button>
+                <button onclick="submitEditWallet()" class="w-1/2 bg-emerald-
