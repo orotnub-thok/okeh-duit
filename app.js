@@ -1,5 +1,6 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbz0CKskSJMt4Q9zXIU7qEUJ7XiQfF-J4ohbb1D2izU9ArXoR4jNBiPUiEthVaGnEQ8/exec";
 let appData = { wallets: [], categories: [], transactions: [] };
+let currentCatTab = 'Expense'; // Tab aktif default: Expense (Pengeluaran)
 
 window.onload = function() {
     if (localStorage.getItem('okeh_logged_in') === 'true') {
@@ -154,15 +155,55 @@ async function deleteWallet(id) {
     if (json.success) { closeWalletDetailModal(); loadData(); } else { alert(json.message); }
 }
 
+// KELOLA KATEGORI DENGAN SISTEM TAB & SORT BERDASARKAN NAMA
 function openCategoryManagerModal() {
+    renderCategoryList();
+    document.getElementById('categoryManagerModal').classList.remove('hidden');
+}
+
+function switchCategoryTab(type) {
+    currentCatTab = type;
+    renderCategoryList();
+}
+
+function renderCategoryList() {
     const content = document.getElementById('categoryListContent');
+    
+    // Inject tombol tab pilihan (Expense / Income) di dalam modal jika belum ada
+    let tabContainer = document.getElementById('catTabContainer');
+    if (!tabContainer) {
+        const modalBody = document.querySelector('#categoryManagerModal > div');
+        tabContainer = document.createElement('div');
+        tabContainer.id = 'catTabContainer';
+        tabContainer.className = 'grid grid-cols-2 gap-2 mb-2';
+        // Sisipkan di bawah tombol "Tambah Kategori"
+        const btnAdd = modalBody.querySelector('button[onclick="openCategoryModal()"]');
+        btnAdd.parentNode.insertBefore(tabContainer, btnAdd.nextSibling);
+    }
+
+    // Render tombol Tab
+    tabContainer.innerHTML = `
+        <button onclick="switchCategoryTab('Expense')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Expense' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pengeluaran (Expense)</button>
+        <button onclick="switchCategoryTab('Income')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Income' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pemasukan (Income)</button>
+    `;
+
     content.innerHTML = '';
-    appData.categories.forEach(c => {
+
+    // Filter berdasarkan tab aktif dan Urutkan (sort) berdasarkan nama secara alfabetis (A-Z)
+    const filteredCategories = appData.categories
+        .filter(c => c['Tipe'] === currentCatTab)
+        .sort((a, b) => a['Nama Kategori'].localeCompare(b['Nama Kategori']));
+
+    if (filteredCategories.length === 0) {
+        content.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada kategori ${currentCatTab === 'Expense' ? 'Pengeluaran' : 'Pemasukan'}</div>`;
+        return;
+    }
+
+    filteredCategories.forEach(c => {
         content.innerHTML += `
             <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border text-sm">
                 <div>
                     <span class="font-bold text-slate-700">${c['Nama Kategori']}</span>
-                    <span class="text-xs text-slate-400 ml-2">(${c['Tipe']})</span>
                 </div>
                 <div class="flex space-x-1">
                     <button onclick="openEditCategory('${c['Category ID']}', '${c['Nama Kategori']}', '${c['Tipe']}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
@@ -175,7 +216,6 @@ function openCategoryManagerModal() {
             </div>
         `;
     });
-    document.getElementById('categoryManagerModal').classList.remove('hidden');
 }
 
 function closeCategoryManagerModal() { document.getElementById('categoryManagerModal').classList.add('hidden'); }
@@ -237,9 +277,13 @@ function openTxModal(type) {
 
     if (type !== 'Transfer') {
         catSelect.innerHTML = '';
-        appData.categories.filter(c => c['Tipe'] === type).forEach(c => {
-            catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
-        });
+        // Urutkan juga dropdown kategori saat memilih transaksi
+        appData.categories
+            .filter(c => c['Tipe'] === type)
+            .sort((a, b) => a['Nama Kategori'].localeCompare(b['Nama Kategori']))
+            .forEach(c => {
+                catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
+            });
     }
 
     document.getElementById('txModal').classList.remove('hidden');
@@ -273,7 +317,7 @@ async function submitTransaction(e) {
 async function submitNewWallet() {
     const name = document.getElementById('newWalletName').value;
     const currency = document.getElementById('newWalletCurrency').value;
-    const initial = document.getElementById('newWalletInitial').value;
+    const initial = document.getElementById('newWalletInitial' ).value;
     if (!name) return alert('Nama wallet wajib diisi');
 
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'addWallet', name, currency, initial }) });
