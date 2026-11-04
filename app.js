@@ -1,7 +1,7 @@
 const API_URL = "https://script.google.com/macros/s/AKfycbz0CKskSJMt4Q9zXIU7qEUJ7XiQfF-J4ohbb1D2izU9ArXoR4jNBiPUiEthVaGnEQ8/exec";
 let appData = { wallets: [], categories: [], transactions: [] };
-let currentCatTab = 'Expense'; // Tab aktif default untuk kategori
-let currentWalletTab = 'IDR';  // Tab aktif default untuk wallet
+let currentCatTab = 'Expense';
+let currentWalletTab = 'IDR';
 
 window.onload = function() {
     if (localStorage.getItem('okeh_logged_in') === 'true') {
@@ -36,13 +36,34 @@ async function loadData() {
     }
 }
 
+// Helper untuk membaca properti objek secara fleksibel (mengatasi masalah spasi dari Google Sheets)
+function getProp(obj, keys) {
+    for (let key of keys) {
+        if (obj[key] !== undefined && obj[key] !== null && obj[key] !== '') {
+            return obj[key];
+        }
+    }
+    // Coba cari key yang mengandung string tersebut tanpa spasi/case-sensitive
+    const objKeys = Object.keys(obj);
+    for (let k of keys) {
+        const cleanK = k.toLowerCase().replace(/\s+/g, '');
+        for (let ok of objKeys) {
+            if (ok.toLowerCase().replace(/\s+/g, '') === cleanK) {
+                return obj[ok];
+            }
+        }
+    }
+    return '';
+}
+
 function renderApp() {
     const currencyTotals = {};
     const currencyWallets = {};
 
     appData.wallets.forEach(w => {
-        const curr = w['Mata Uang'] || 'IDR';
-        const saldo = Number(w['SaldoAkhir'] || 0);
+        const curr = getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || 'IDR';
+        const saldo = Number(getProp(w, ['Saldo Akhir', 'SaldoAkhir', 'Saldo', 'Balance']) || 0);
+        
         if (!currencyTotals[curr]) {
             currencyTotals[curr] = 0;
             currencyWallets[curr] = [];
@@ -72,18 +93,31 @@ function renderApp() {
     const selTo = document.getElementById('txTo');
     selFrom.innerHTML = ''; selTo.innerHTML = '';
     
-    const sortedWalletsForTx = [...appData.wallets].sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
+    const sortedWalletsForTx = [...appData.wallets].sort((a, b) => {
+        const nameA = getProp(a, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+        const nameB = getProp(b, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+        return nameA.localeCompare(nameB);
+    });
+
     sortedWalletsForTx.forEach(w => {
-        selFrom.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']} (${w['Mata Uang']})</option>`;
-        selTo.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']} (${w['Mata Uang']})</option>`;
+        const name = getProp(w, ['Nama Wallet', 'NamaWallet', 'Wallet']);
+        const curr = getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || 'IDR';
+        selFrom.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
+        selTo.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
     });
 
     const historyEl = document.getElementById('txHistory');
     historyEl.innerHTML = '';
     [...appData.transactions].reverse().slice(0, 10).forEach(t => {
-        const jumlahFmt = Number(t['Jumlah'] || 0).toLocaleString('id-ID');
-        const isIncome = t['Tipe'] === 'Income';
-        const isTransfer = t['Tipe'] === 'Transfer';
+        const jumlah = Number(getProp(t, ['Jumlah', 'Amount']) || 0);
+        const jumlahFmt = jumlah.toLocaleString('id-ID');
+        const tipe = getProp(t, ['Tipe', 'Type']);
+        const kategori = getProp(t, ['Kategori', 'Category']);
+        const tanggal = getProp(t, ['Tanggal', 'Date']);
+        const catatan = getProp(t, ['Catatan', 'Note']);
+
+        const isIncome = tipe === 'Income';
+        const isTransfer = tipe === 'Transfer';
         let colorClass = 'text-rose-600', sign = '-';
         if (isIncome) { colorClass = 'text-emerald-600'; sign = '+'; }
         if (isTransfer) { colorClass = 'text-blue-600'; sign = '•'; }
@@ -91,8 +125,8 @@ function renderApp() {
         historyEl.innerHTML += `
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
                 <div>
-                    <div class="font-bold text-slate-700">${t['Kategori'] || t['Tipe']}</div>
-                    <div class="text-xs text-slate-400">${t['Tanggal']} • ${t['Catatan'] || '-'}</div>
+                    <div class="font-bold text-slate-700">${kategori || tipe}</div>
+                    <div class="text-xs text-slate-400">${tanggal} • ${catatan || '-'}</div>
                 </div>
                 <div class="font-semibold ${colorClass}">${sign} Rp ${jumlahFmt}</div>
             </div>
@@ -100,35 +134,42 @@ function renderApp() {
     });
 }
 
-// FUNGSI KETIKA KOTAK SALDO DIKLIK (Rincian per mata uang)
 function openWalletDetail(curr) {
     document.getElementById('walletDetailTitle').innerText = `Rincian Wallet (${curr})`;
     const contentEl = document.getElementById('walletDetailContent');
     contentEl.innerHTML = '';
 
-    // Hapus tab container jika ada sisa dari menu kelola
     const existingTab = document.getElementById('walletTabContainer');
     if (existingTab) existingTab.remove();
 
-    const wallets = (window.currencyWalletsData[curr] || []).sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
+    const rawWallets = window.currencyWalletsData[curr] || [];
+    const wallets = rawWallets.sort((a, b) => {
+        const nameA = getProp(a, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+        const nameB = getProp(b, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+        return nameA.localeCompare(nameB);
+    });
     
     if (wallets.length === 0) {
         contentEl.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada wallet untuk ${curr}</div>`;
     } else {
         wallets.forEach(w => {
-            const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+            const id = getProp(w, ['Wallet ID', 'WalletID', 'ID']);
+            const name = getProp(w, ['Nama Wallet', 'NamaWallet', 'Wallet']);
+            const currVal = getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || curr;
+            const saldo = Number(getProp(w, ['Saldo Akhir', 'SaldoAkhir', 'Saldo', 'Balance']) || 0).toLocaleString('id-ID');
             const symbol = curr === 'USD' ? '$' : 'Rp';
+
             contentEl.innerHTML += `
                 <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border text-sm">
                     <div>
-                        <div class="font-bold text-slate-700">${w['Nama Wallet']}</div>
+                        <div class="font-bold text-slate-700">${name}</div>
                         <div class="text-xs text-slate-500">${symbol} ${saldo}</div>
                     </div>
                     <div class="flex space-x-1">
-                        <button onclick="openEditWallet('${w['Wallet ID']}', '${w['Nama Wallet']}', '${w['Mata Uang']}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
+                        <button onclick="openEditWallet('${id}', '${name}', '${currVal}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                         </button>
-                        <button onclick="deleteWallet('${w['Wallet ID']}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
+                        <button onclick="deleteWallet('${id}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                         </button>
                     </div>
@@ -140,7 +181,6 @@ function openWalletDetail(curr) {
     document.getElementById('walletDetailModal').classList.remove('hidden');
 }
 
-// FUNGSI KETIKA TOMBOL "KELOLA WALLET" DIKLIK DI ATAS
 function openWalletManagerModal(defaultCurr = 'IDR') {
     currentWalletTab = defaultCurr;
     renderWalletList();
@@ -156,7 +196,7 @@ function renderWalletList() {
     document.getElementById('walletDetailTitle').innerText = `Kelola Wallet`;
     const contentEl = document.getElementById('walletDetailContent');
     
-    const availableCurrencies = [...new Set(appData.wallets.map(w => w['Mata Uang'] || 'IDR'))];
+    const availableCurrencies = [...new Set(appData.wallets.map(w => getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || 'IDR'))];
     if (availableCurrencies.length === 0) availableCurrencies.push('IDR');
 
     let tabContainer = document.getElementById('walletTabContainer');
@@ -166,8 +206,8 @@ function renderWalletList() {
         tabContainer.id = 'walletTabContainer';
         tabContainer.className = 'grid grid-cols-2 gap-2 mb-2';
         
-        // Tambahkan tombol "+ Tambah Wallet" di atas daftar
         const btnAddWallet = document.createElement('button');
+        btnAddWallet.id = 'btnAddWalletDynamic';
         btnAddWallet.className = 'w-full mb-2 text-xs bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-semibold';
         btnAddWallet.innerText = '+ Tambah Wallet Baru';
         btnAddWallet.onclick = function() { closeWalletDetailModal(); openWalletModal(); };
@@ -184,8 +224,12 @@ function renderWalletList() {
     contentEl.innerHTML = '';
 
     const filteredWallets = appData.wallets
-        .filter(w => (w['Mata Uang'] || 'IDR') === currentWalletTab)
-        .sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
+        .filter(w => (getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || 'IDR') === currentWalletTab)
+        .sort((a, b) => {
+            const nameA = getProp(a, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+            const nameB = getProp(b, ['Nama Wallet', 'NamaWallet', 'Wallet']) || '';
+            return nameA.localeCompare(nameB);
+        });
 
     if (filteredWallets.length === 0) {
         contentEl.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada wallet untuk mata uang ${currentWalletTab}</div>`;
@@ -193,19 +237,23 @@ function renderWalletList() {
     }
 
     filteredWallets.forEach(w => {
-        const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+        const id = getProp(w, ['Wallet ID', 'WalletID', 'ID']);
+        const name = getProp(w, ['Nama Wallet', 'NamaWallet', 'Wallet']);
+        const currVal = getProp(w, ['Mata Uang', 'MataUang', 'Currency']) || currentWalletTab;
+        const saldo = Number(getProp(w, ['Saldo Akhir', 'SaldoAkhir', 'Saldo', 'Balance']) || 0).toLocaleString('id-ID');
         const symbol = currentWalletTab === 'USD' ? '$' : 'Rp';
+
         contentEl.innerHTML += `
             <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border text-sm">
                 <div>
-                    <div class="font-bold text-slate-700">${w['Nama Wallet']}</div>
+                    <div class="font-bold text-slate-700">${name}</div>
                     <div class="text-xs text-slate-500">${symbol} ${saldo}</div>
                 </div>
                 <div class="flex space-x-1">
-                    <button onclick="openEditWallet('${w['Wallet ID']}', '${w['Nama Wallet']}', '${w['Mata Uang']}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
+                    <button onclick="openEditWallet('${id}', '${name}', '${currVal}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     </button>
-                    <button onclick="deleteWallet('${w['Wallet ID']}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
+                    <button onclick="deleteWallet('${id}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                 </div>
@@ -218,6 +266,8 @@ function closeWalletDetailModal() {
     document.getElementById('walletDetailModal').classList.add('hidden'); 
     const tabContainer = document.getElementById('walletTabContainer');
     if (tabContainer) tabContainer.remove();
+    const btnAddDyn = document.getElementById('btnAddWalletDynamic');
+    if (btnAddDyn) btnAddDyn.remove();
 }
 
 function openEditWallet(id, name, currency) {
@@ -289,8 +339,12 @@ function renderCategoryList() {
     content.innerHTML = '';
 
     const filteredCategories = appData.categories
-        .filter(c => c['Tipe'] === currentCatTab)
-        .sort((a, b) => a['Nama Kategori'].localeCompare(b['Nama Kategori']));
+        .filter(c => getProp(c, ['Tipe', 'Type']) === currentCatTab)
+        .sort((a, b) => {
+            const nameA = getProp(a, ['Nama Kategori', 'NamaKategori', 'Category']) || '';
+            const nameB = getProp(b, ['Nama Kategori', 'NamaKategori', 'Category']) || '';
+            return nameA.localeCompare(nameB);
+        });
 
     if (filteredCategories.length === 0) {
         content.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada kategori</div>`;
@@ -298,16 +352,20 @@ function renderCategoryList() {
     }
 
     filteredCategories.forEach(c => {
+        const id = getProp(c, ['Category ID', 'CategoryID', 'ID']);
+        const name = getProp(c, ['Nama Kategori', 'NamaKategori', 'Category']);
+        const type = getProp(c, ['Tipe', 'Type']);
+
         content.innerHTML += `
             <div class="flex justify-between items-center bg-slate-50 p-2.5 rounded-lg border text-sm">
                 <div>
-                    <span class="font-bold text-slate-700">${c['Nama Kategori']}</span>
+                    <span class="font-bold text-slate-700">${name}</span>
                 </div>
                 <div class="flex space-x-1">
-                    <button onclick="openEditCategory('${c['Category ID']}', '${c['Nama Kategori']}', '${c['Tipe']}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
+                    <button onclick="openEditCategory('${id}', '${name}', '${type}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
                     </button>
-                    <button onclick="deleteCategory('${c['Category ID']}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
+                    <button onclick="deleteCategory('${id}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
                     </button>
                 </div>
@@ -380,10 +438,15 @@ function openTxModal(type) {
     if (type !== 'Transfer') {
         catSelect.innerHTML = '';
         appData.categories
-            .filter(c => c['Tipe'] === type)
-            .sort((a, b) => a['Nama Kategori'].localeCompare(b['Nama Kategori']))
+            .filter(c => getProp(c, ['Tipe', 'Type']) === type)
+            .sort((a, b) => {
+                const nameA = getProp(a, ['Nama Kategori', 'NamaKategori', 'Category']) || '';
+                const nameB = getProp(b, ['Nama Kategori', 'NamaKategori', 'Category']) || '';
+                return nameA.localeCompare(nameB);
+            })
             .forEach(c => {
-                catSelect.innerHTML += `<option value="${c['Nama Kategori']}">${c['Nama Kategori']}</option>`;
+                const name = getProp(c, ['Nama Kategori', 'NamaKategori', 'Category']);
+                catSelect.innerHTML += `<option value="${name}">${name}</option>`;
             });
     }
 
