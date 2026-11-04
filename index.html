@@ -30,13 +30,13 @@
         <!-- Konten Utama -->
         <main class="p-4 max-w-md mx-auto space-y-6">
             
-            <!-- Ringkasan Saldo Wallet -->
+            <!-- Ringkasan Saldo Berdasarkan Mata Uang -->
             <section>
                 <div class="flex justify-between items-center mb-2">
-                    <h2 class="text-xs font-bold text-slate-500 tracking-wider">DAFTAR WALLET</h2>
+                    <h2 class="text-xs font-bold text-slate-500 tracking-wider">TOTAL SALDO</h2>
                     <button onclick="openWalletModal()" class="text-xs bg-emerald-600 text-white px-2 py-1 rounded hover:bg-emerald-700">+ Tambah Wallet</button>
                 </div>
-                <div id="walletList" class="grid grid-cols-2 gap-3"></div>
+                <div id="currencySummaryList" class="grid grid-cols-2 gap-3"></div>
             </section>
 
             <!-- Tombol Aksi Transaksi Cepat -->
@@ -61,6 +61,20 @@
                 <div id="txHistory" class="space-y-2"></div>
             </section>
         </main>
+    </div>
+
+    <!-- MODAL RINCIAN WALLET PER MATA UANG -->
+    <div id="walletDetailModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 id="walletDetailTitle" class="font-bold text-lg text-slate-800">Rincian Wallet</h3>
+                <button onclick="closeWalletDetailModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            <div id="walletDetailContent" class="space-y-3 max-h-60 overflow-y-auto">
+                <!-- Diisi via JavaScript -->
+            </div>
+            <button onclick="closeWalletDetailModal()" class="w-full bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg text-sm hover:bg-slate-300 transition">Tutup</button>
+        </div>
     </div>
 
     <!-- MODAL POPUP TRANSAKSI -->
@@ -182,20 +196,43 @@
         }
 
         function renderApp() {
-            // Render Wallets
-            const wList = document.getElementById('walletList');
-            wList.innerHTML = '';
+            // Kelompokkan Saldo Berdasarkan Mata Uang
+            const currencyTotals = {};
+            const currencyWallets = {};
+
             appData.wallets.forEach(w => {
-                const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
-                wList.innerHTML += `
-                    <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200">
-                        <div class="text-xs text-slate-400 font-medium">${w['Nama Wallet']} (${w['Mata Uang']})</div>
-                        <div class="text-base font-bold text-slate-800">${w['Mata Uang'] === 'USD' ? '$' : 'Rp'} ${saldo}</div>
-                    </div>
-                `;
+                const curr = w['Mata Uang'] || 'IDR';
+                const saldo = Number(w['SaldoAkhir'] || 0);
+                
+                if (!currencyTotals[curr]) {
+                    currencyTotals[curr] = 0;
+                    currencyWallets[curr] = [];
+                }
+                currencyTotals[curr] += saldo;
+                currencyWallets[curr].push(w);
             });
 
-            // Populate Wallet Options
+            // Render Kotak Saldo Per Mata Uang
+            const summaryList = document.getElementById('currencySummaryList');
+            summaryList.innerHTML = '';
+
+            for (const [curr, total] of Object.entries(currencyTotals)) {
+                const totalFmt = total.toLocaleString('id-ID');
+                const symbol = curr === 'USD' ? '$' : 'Rp';
+                
+                summaryList.innerHTML += `
+                    <div onclick="openWalletDetail('${curr}')" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition">
+                        <div class="text-xs text-slate-400 font-medium">Total (${curr})</div>
+                        <div class="text-base font-bold text-slate-800">${symbol} ${totalFmt}</div>
+                        <div class="text-[10px] text-emerald-600 mt-1 font-medium">Ketuk untuk rincian &rarr;</div>
+                    </div>
+                `;
+            }
+
+            // Simpan referensi ke global agar bisa dipanggil saat modal rincian dibuka
+            window.currencyWalletsData = currencyWallets;
+
+            // Populate Wallet Options untuk form transaksi
             const selFrom = document.getElementById('txFrom');
             const selTo = document.getElementById('txTo');
             selFrom.innerHTML = ''; selTo.innerHTML = '';
@@ -231,6 +268,31 @@
             });
         }
 
+        // MODAL RINCIAN WALLET
+        function openWalletDetail(curr) {
+            document.getElementById('walletDetailTitle').innerText = `Rincian Wallet (${curr})`;
+            const contentEl = document.getElementById('walletDetailContent');
+            contentEl.innerHTML = '';
+
+            const wallets = window.currencyWalletsData[curr] || [];
+            wallets.forEach(w => {
+                const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+                const symbol = curr === 'USD' ? '$' : 'Rp';
+                contentEl.innerHTML += `
+                    <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border">
+                        <span class="font-medium text-sm text-slate-700">${w['Nama Wallet']}</span>
+                        <span class="font-bold text-sm text-slate-900">${symbol} ${saldo}</span>
+                    </div>
+                `;
+            });
+
+            document.getElementById('walletDetailModal').classList.remove('hidden');
+        }
+
+        function closeWalletDetailModal() {
+            document.getElementById('walletDetailModal').classList.add('hidden');
+        }
+
         // AKSI MODAL TRANSAKSI
         function openTxModal(type) {
             document.getElementById('txType').value = type;
@@ -261,7 +323,6 @@
                 wrapperKategori.classList.add('hidden');
             }
 
-            // Populate Kategori sesuai tipe
             if (type !== 'Transfer') {
                 catSelect.innerHTML = '';
                 appData.categories
