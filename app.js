@@ -116,8 +116,12 @@ function renderApp() {
         const jumlahFmt = jumlah.toLocaleString('id-ID');
         const tipe = String(findVal(t, ['tipe', 'type']) || '');
         const kategori = String(findVal(t, ['kategori', 'category']) || '');
-        const tanggal = String(findVal(t, ['tanggal', 'date']) || '');
+        let tanggal = String(findVal(t, ['tanggal', 'date']) || '');
+        if (tanggal.includes('T')) {
+            tanggal = tanggal.split('T')[0];
+        }
         const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
+        const txCurr = String(findVal(t, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
 
         if (!tipe && !jumlah) return;
 
@@ -127,13 +131,15 @@ function renderApp() {
         if (isIncome) { colorClass = 'text-emerald-600'; sign = '+'; }
         if (isTransfer) { colorClass = 'text-blue-600'; sign = '•'; }
 
+        const symbol = txCurr === 'USD' ? '$' : 'Rp';
+
         historyEl.innerHTML += `
             <div class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
                 <div>
                     <div class="font-bold text-slate-700">${kategori || tipe}</div>
                     <div class="text-xs text-slate-400">${tanggal} • ${catatan || '-'}</div>
                 </div>
-                <div class="font-semibold ${colorClass}">${sign} Rp ${jumlahFmt}</div>
+                <div class="font-semibold ${colorClass}">${sign} ${symbol} ${jumlahFmt}</div>
             </div>
         `;
     });
@@ -433,6 +439,9 @@ function openTxModal(type) {
     const labelDari = document.getElementById('labelDari');
     const catSelect = document.getElementById('txCategory');
 
+    const todayStr = new Date().toISOString().split('T')[0];
+    document.getElementById('txDate').value = todayStr;
+
     if (type === 'Income') {
         modalTitle.innerText = 'Tambah Pemasukan';
         btnSave.className = 'w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm';
@@ -488,7 +497,7 @@ async function submitTransaction(e) {
         kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('txCategory').value,
         jumlah: document.getElementById('txAmount').value,
         catatan: document.getElementById('txNote').value,
-        tanggal: new Date().toISOString().split('T')[0]
+        tanggal: document.getElementById('txDate').value
     };
 
     const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
