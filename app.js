@@ -58,10 +58,10 @@ function renderApp() {
         const totalFmt = total.toLocaleString('id-ID');
         const symbol = curr === 'USD' ? '$' : 'Rp';
         summaryList.innerHTML += `
-            <div onclick="openWalletManagerModal('${curr}')" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition">
+            <div onclick="openWalletDetail('${curr}')" class="bg-white p-3 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-emerald-500 transition">
                 <div class="text-xs text-slate-400 font-medium">Total (${curr})</div>
                 <div class="text-base font-bold text-slate-800">${symbol} ${totalFmt}</div>
-                <div class="text-[10px] text-emerald-600 mt-1 font-medium">Kelola & Rincian &rarr;</div>
+                <div class="text-[10px] text-emerald-600 mt-1 font-medium">Ketuk rincian &rarr;</div>
             </div>
         `;
     }
@@ -72,7 +72,6 @@ function renderApp() {
     const selTo = document.getElementById('txTo');
     selFrom.innerHTML = ''; selTo.innerHTML = '';
     
-    // Urutkan dropdown pilihan wallet berdasarkan nama (A-Z)
     const sortedWalletsForTx = [...appData.wallets].sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
     sortedWalletsForTx.forEach(w => {
         selFrom.innerHTML += `<option value="${w['Nama Wallet']}">${w['Nama Wallet']} (${w['Mata Uang']})</option>`;
@@ -101,7 +100,47 @@ function renderApp() {
     });
 }
 
-// KELOLA WALLET DENGAN SISTEM TAB & SORT BERDASARKAN NAMA
+// FUNGSI KETIKA KOTAK SALDO DIKLIK (Rincian per mata uang)
+function openWalletDetail(curr) {
+    document.getElementById('walletDetailTitle').innerText = `Rincian Wallet (${curr})`;
+    const contentEl = document.getElementById('walletDetailContent');
+    contentEl.innerHTML = '';
+
+    // Hapus tab container jika ada sisa dari menu kelola
+    const existingTab = document.getElementById('walletTabContainer');
+    if (existingTab) existingTab.remove();
+
+    const wallets = (window.currencyWalletsData[curr] || []).sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
+    
+    if (wallets.length === 0) {
+        contentEl.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada wallet untuk ${curr}</div>`;
+    } else {
+        wallets.forEach(w => {
+            const saldo = Number(w['SaldoAkhir'] || 0).toLocaleString('id-ID');
+            const symbol = curr === 'USD' ? '$' : 'Rp';
+            contentEl.innerHTML += `
+                <div class="flex justify-between items-center bg-slate-50 p-3 rounded-lg border text-sm">
+                    <div>
+                        <div class="font-bold text-slate-700">${w['Nama Wallet']}</div>
+                        <div class="text-xs text-slate-500">${symbol} ${saldo}</div>
+                    </div>
+                    <div class="flex space-x-1">
+                        <button onclick="openEditWallet('${w['Wallet ID']}', '${w['Nama Wallet']}', '${w['Mata Uang']}')" class="p-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition" title="Ubah">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                        </button>
+                        <button onclick="deleteWallet('${w['Wallet ID']}')" class="p-1.5 bg-rose-500 text-white rounded-lg hover:bg-rose-600 transition" title="Hapus">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                        </button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    document.getElementById('walletDetailModal').classList.remove('hidden');
+}
+
+// FUNGSI KETIKA TOMBOL "KELOLA WALLET" DIKLIK DI ATAS
 function openWalletManagerModal(defaultCurr = 'IDR') {
     currentWalletTab = defaultCurr;
     renderWalletList();
@@ -114,34 +153,36 @@ function switchWalletTab(curr) {
 }
 
 function renderWalletList() {
-    const modalTitle = document.getElementById('walletDetailTitle');
-    modalTitle.innerText = `Kelola Wallet`;
-    
+    document.getElementById('walletDetailTitle').innerText = `Kelola Wallet`;
     const contentEl = document.getElementById('walletDetailContent');
     
-    // Ambil daftar mata uang yang unik dari seluruh wallet yang ada
     const availableCurrencies = [...new Set(appData.wallets.map(w => w['Mata Uang'] || 'IDR'))];
     if (availableCurrencies.length === 0) availableCurrencies.push('IDR');
 
-    // Buat atau update container tab mata uang di dalam modal wallet
     let tabContainer = document.getElementById('walletTabContainer');
     if (!tabContainer) {
         const modalBody = document.querySelector('#walletDetailModal > div');
         tabContainer = document.createElement('div');
         tabContainer.id = 'walletTabContainer';
         tabContainer.className = 'grid grid-cols-2 gap-2 mb-2';
+        
+        // Tambahkan tombol "+ Tambah Wallet" di atas daftar
+        const btnAddWallet = document.createElement('button');
+        btnAddWallet.className = 'w-full mb-2 text-xs bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 font-semibold';
+        btnAddWallet.innerText = '+ Tambah Wallet Baru';
+        btnAddWallet.onclick = function() { closeWalletDetailModal(); openWalletModal(); };
+        modalBody.insertBefore(btnAddWallet, modalBody.querySelector('#walletDetailContent'));
+
         const modalHeader = modalBody.querySelector('.flex.justify-between.items-center.border-b');
         modalHeader.parentNode.insertBefore(tabContainer, modalHeader.nextSibling);
     }
 
-    // Render tombol Tab Mata Uang (IDR, USD, dll)
     tabContainer.innerHTML = availableCurrencies.map(curr => `
         <button onclick="switchWalletTab('${curr}')" class="py-2 text-xs font-bold rounded-lg transition ${currentWalletTab === curr ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">${curr}</button>
     `).join('');
 
     contentEl.innerHTML = '';
 
-    // Filter wallet berdasarkan mata uang tab aktif, lalu urutkan (sort) berdasarkan nama secara alfabetis (A-Z)
     const filteredWallets = appData.wallets
         .filter(w => (w['Mata Uang'] || 'IDR') === currentWalletTab)
         .sort((a, b) => a['Nama Wallet'].localeCompare(b['Nama Wallet']));
@@ -173,7 +214,11 @@ function renderWalletList() {
     });
 }
 
-function closeWalletDetailModal() { document.getElementById('walletDetailModal').classList.add('hidden'); }
+function closeWalletDetailModal() { 
+    document.getElementById('walletDetailModal').classList.add('hidden'); 
+    const tabContainer = document.getElementById('walletTabContainer');
+    if (tabContainer) tabContainer.remove();
+}
 
 function openEditWallet(id, name, currency) {
     document.getElementById('editWalletId').value = id;
@@ -212,7 +257,7 @@ async function deleteWallet(id) {
     }
 }
 
-// KELOLA KATEGORI DENGAN SISTEM TAB & SORT BERDASARKAN NAMA
+// KELOLA KATEGORI
 function openCategoryManagerModal() {
     renderCategoryList();
     document.getElementById('categoryManagerModal').classList.remove('hidden');
@@ -237,8 +282,8 @@ function renderCategoryList() {
     }
 
     tabContainer.innerHTML = `
-        <button onclick="switchCategoryTab('Expense')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Expense' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pengeluaran (Expense)</button>
-        <button onclick="switchCategoryTab('Income')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Income' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pemasukan (Income)</button>
+        <button onclick="switchCategoryTab('Expense')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Expense' ? 'bg-rose-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pengeluaran</button>
+        <button onclick="switchCategoryTab('Income')" class="py-2 text-xs font-bold rounded-lg transition ${currentCatTab === 'Income' ? 'bg-emerald-600 text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}">Pemasukan</button>
     `;
 
     content.innerHTML = '';
@@ -248,7 +293,7 @@ function renderCategoryList() {
         .sort((a, b) => a['Nama Kategori'].localeCompare(b['Nama Kategori']));
 
     if (filteredCategories.length === 0) {
-        content.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada kategori ${currentCatTab === 'Expense' ? 'Pengeluaran' : 'Pemasukan'}</div>`;
+        content.innerHTML = `<div class="text-center text-xs text-slate-400 py-4">Belum ada kategori</div>`;
         return;
     }
 
@@ -271,7 +316,11 @@ function renderCategoryList() {
     });
 }
 
-function closeCategoryManagerModal() { document.getElementById('categoryManagerModal').classList.add('hidden'); }
+function closeCategoryManagerModal() { 
+    document.getElementById('categoryManagerModal').classList.add('hidden'); 
+    const tabContainer = document.getElementById('catTabContainer');
+    if (tabContainer) tabContainer.remove();
+}
 
 function openEditCategory(id, name, type) {
     document.getElementById('editCatId').value = id;
@@ -338,7 +387,6 @@ function openTxModal(type) {
             });
     }
 
-    document.getElementById('txModal').classList.add('hidden'); // Memastikan tidak bentrok
     document.getElementById('txModal').classList.remove('hidden');
 }
 
