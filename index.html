@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencatatan Keuangan Pribadi</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased">
+
+    <!-- HALAMAN LOGIN -->
+    <div id="loginPage" class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-sm text-center">
+            <h1 class="text-2xl font-bold text-emerald-600 mb-2">Keuangan Pribadi</h1>
+            <p class="text-sm text-slate-500 mb-6">Masukkan PIN untuk membuka aplikasi</p>
+            <input type="password" id="pinInput" maxlength="6" placeholder="******" class="w-full text-center text-2xl tracking-widest border border-slate-300 rounded-lg p-3 mb-4 focus:outline-none focus:border-emerald-500">
+            <button onclick="handleLogin()" class="w-full bg-emerald-600 text-white font-semibold py-3 rounded-lg hover:bg-emerald-700 transition">Masuk</button>
+            <p id="loginError" class="text-red-500 text-sm mt-3 hidden">PIN Salah!</p>
+        </div>
+    </div>
+
+    <!-- HALAMAN UTAMA -->
+    <div id="mainApp" class="hidden min-h-screen pb-20">
+        <!-- Header -->
+        <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+            <h1 class="text-lg font-bold">Dompet & Keuangan</h1>
+            <button onclick="loadData()" class="text-sm bg-emerald-700 px-3 py-1 rounded hover:bg-emerald-800">Refresh</button>
+        </header>
+
+        <!-- Konten Utama -->
+        <main class="p-4 max-w-md mx-auto space-y-6">
+            
+            <!-- Ringkasan Saldo Wallet -->
+            <section>
+                <h2 class="text-sm font-semibold text-slate-500 mb-2">DAFTAR WALLET</h2>
+                <div id="walletList" class="grid grid-cols-2 gap-3">
+                    <!-- Dinamis dari script -->
+                </div>
+            </section>
+
+            <!-- Form Tambah Transaksi -->
+            <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+                <h2 class="text-sm font-semibold text-slate-500 mb-3">TAMBAH TRANSAKSI BARU</h2>
+                <form id="txForm" onsubmit="submitTransaction(event)" class="space-y-3">
+                    <div>
+                        <label class="text-xs text-slate-500">Tipe</label>
+                        <select id="txType" onchange="updateCategories()" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                            <option value="Expense">Pengeluaran (Expense)</option>
+                            <option value="Income">Pemasukan (Income)</option>
+                            <option value="Transfer">Transfer</option>
+                        </select>
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-xs text-slate-500" id="labelDari">Dari Wallet</label>
+                            <select id="txFrom" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+                        </div>
+                        <div id="wrapperKe" class="hidden">
+                            <label class="text-xs text-slate-500">Ke Wallet</label>
+                            <select id="txTo" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+                        </div>
+                    </div>
+
+                    <div id="wrapperKategori">
+                        <label class="text-xs text-slate-500">Kategori</label>
+                        <select id="txCategory" class="w-full border rounded-lg p-2 text-sm bg-slate-50"></select>
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-500">Jumlah</label>
+                        <input type="number" id="txAmount" required placeholder="0" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                    </div>
+
+                    <div>
+                        <label class="text-xs text-slate-500">Catatan (Opsional)</label>
+                        <input type="text" id="txNote" placeholder="Misal: Beli kopi" class="w-full border rounded-lg p-2 text-sm bg-slate-50">
+                    </div>
+
+                    <button type="submit" class="w-full bg-emerald-600 text-white font-semibold py-2 rounded-lg hover:bg-emerald-700 transition">Simpan Transaksi</button>
+                </form>
+            </section>
+
+            <!-- Riwayat Transaksi -->
+            <section>
+                <h2 class="text-sm font-semibold text-slate-500 mb-2">RIWAYAT TERAKHIR</h2>
+                <div id="txHistory" class="space-y-2">
+                    <!-- Dinamis dari script -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // URL WEB APP GOOGLE APPS SCRIPT
+        const API_URL = "
