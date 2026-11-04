@@ -116,9 +116,20 @@ function renderApp() {
         const jumlahFmt = jumlah.toLocaleString('id-ID');
         const tipe = String(findVal(t, ['tipe', 'type']) || '');
         const kategori = String(findVal(t, ['kategori', 'category']) || '');
-        let tanggal = String(findVal(t, ['tanggal', 'date']) || '');
-        if (tanggal.includes('T')) {
-            tanggal = tanggal.split('T')[0];
+        let rawTanggal = findVal(t, ['tanggal', 'date']);
+        let tanggal = '';
+        if (rawTanggal) {
+            // Jika berupa objek Date atau string ISO, ambil bagian YYYY-MM-DD nya saja secara aman
+            let d = new Date(rawTanggal);
+            if (!isNaN(d.getTime())) {
+                // Gunakan komponen UTC agar tidak bergeser akibat timezone browser
+                let year = d.getUTCFullYear();
+                let month = String(d.getUTCMonth() + 1).padStart(2, '0');
+                let day = String(d.getUTCDate()).padStart(2, '0');
+                tanggal = `${year}-${month}-${day}`;
+            } else {
+                tanggal = String(rawTanggal).split('T')[0];
+            }
         }
         const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
         const txCurr = String(findVal(t, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
