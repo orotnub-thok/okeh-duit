@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat Transaksi - Okeh Duitku</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans antialiased min-h-screen pb-10">
+
+    <!-- HEADER DEPAN -->
+    <header class="bg-emerald-600 text-white p-4 shadow-md sticky top-0 z-10 flex justify-between items-center">
+        <div class="flex items-center space-x-2">
+            <a href="index.html" class="p-1 rounded hover:bg-emerald-700 transition">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+            </a>
+            <h1 class="text-lg font-bold">Riwayat Transaksi</h1>
+        </div>
+        <button onclick="loadRiwayatData()" class="text-sm bg-emerald-700 px-3 py-1 rounded hover:bg-emerald-800 transition">Refresh</button>
+    </header>
+
+    <main class="p-4 max-w-md mx-auto space-y-4">
+
+        <!-- PANEL FILTER SANGAT LENGKAP -->
+        <section class="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+            <h2 class="text-xs font-bold text-slate-500 tracking-wider mb-2">FILTER TRANSAKSI</h2>
+            
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="text-[10px] text-slate-400 font-bold block mb-1">TAHUN</label>
+                    <select id="filterYear" onchange="renderRiwayat()" class="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="all">Semua Tahun</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-[10px] text-slate-400 font-bold block mb-1">BULAN</label>
+                    <select id="filterMonth" onchange="renderRiwayat()" class="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="all">Semua Bulan</option>
+                        <option value="0">Januari</option>
+                        <option value="1">Februari</option>
+                        <option value="2">Maret</option>
+                        <option value="3">April</option>
+                        <option value="4">Mei</option>
+                        <option value="5">Juni</option>
+                        <option value="6">Juli</option>
+                        <option value="7">Agustus</option>
+                        <option value="8">September</option>
+                        <option value="9">Oktober</option>
+                        <option value="10">November</option>
+                        <option value="11">Desember</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="text-[10px] text-slate-400 font-bold block mb-1">JENIS TRANSAKSI</label>
+                <select id="filterType" onchange="renderRiwayat()" class="w-full text-xs border border-slate-300 rounded-lg p-2 bg-slate-50 font-semibold text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                    <option value="all" selected>Semua Jenis</option>
+                    <option value="Income">Pemasukan</option>
+                    <option value="Expense">Pengeluaran</option>
+                    <option value="Transfer">Transfer</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- DAFTAR RIWAYAT -->
+        <section>
+            <div id="riwayatList" class="space-y-2">
+                <div class="text-center text-xs text-slate-400 py-8">Memuat riwayat transaksi...</div>
+            </div>
+        </section>
+    </main>
+
+    <!-- MODAL EDIT TRANSAKSI -->
+    <div id="editTxModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+        <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b pb-2">
+                <h3 class="font-bold text-lg text-slate-800">Edit Transaksi</h3>
+                <button onclick="closeEditTxModal()" class="text-slate-400 hover:text-slate-600 font-bold text-xl">&times;</button>
+            </div>
+            <form id="editTxForm" onsubmit="submitEditTransaction(event)" class="space-y-3">
+                <input type="hidden" id="editTxId">
+                <div>
+                    <label class="text-xs text-slate-500 font-semibold">Tanggal Transaksi</label>
+                    <input type="date" id="editTxDate" required class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 font-semibold">Tipe Transaksi</label>
+                    <select id="editTxType" onchange="handleEditTypeChange()" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="Income">Pemasukan</option>
+                        <option value="Expense">Pengeluaran</option>
+                        <option value="Transfer">Transfer</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 font-semibold" id="editLabelDari">Dari Wallet</label>
+                    <select id="editTxFrom" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div id="editWrapperKe" class="hidden">
+                    <label class="text-xs text-slate-500 font-semibold">Ke Wallet</label>
+                    <select id="editTxTo" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div id="editWrapperKategori">
+                    <label class="text-xs text-slate-500 font-semibold">Kategori</label>
+                    <select id="editTxCategory" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 font-semibold">Jumlah</label>
+                    <input type="number" id="editTxAmount" required class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div>
+                    <label class="text-xs text-slate-500 font-semibold">Catatan</label>
+                    <input type="text" id="editTxNote" class="w-full border rounded-lg p-2 text-sm bg-slate-50 mt-1 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                </div>
+                <div class="flex space-x-2 pt-2">
+                    <button type="button" onclick="closeEditTxModal()" class="w-1/2 bg-slate-200 text-slate-700 font-semibold py-2 rounded-lg text-sm">Batal</button>
+                    <button type="submit" class="w-1/2 bg-emerald-600 text-white font-semibold py-2 rounded-lg text-sm hover:bg-emerald-700">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SCRIPT KHUSUS RIWAYAT -->
+    <script src="riwayat.js"></script>
+</body>
+</html>
