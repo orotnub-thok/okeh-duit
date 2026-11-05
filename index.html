@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pencatatan Keuangan</title>
+    <title>Okeh Duitku - Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans antialiased">
@@ -66,10 +66,11 @@
                 </button>
             </section>
 
-            <!-- Riwayat Transaksi -->
+            <!-- Preview Riwayat Transaksi Singkat -->
             <section>
                 <div class="flex justify-between items-center mb-3">
-                    <h2 class="text-xs font-bold text-slate-500 tracking-wider">RIWAYAT TRANSAKSI</h2>
+                    <h2 class="text-xs font-bold text-slate-500 tracking-wider">TRANSAKSI TERAKHIR</h2>
+                    <a href="riwayat.html" class="text-xs text-emerald-600 font-bold hover:underline">Lihat Semua →</a>
                 </div>
                 <div id="txHistory" class="space-y-2"></div>
             </section>
@@ -147,7 +148,7 @@
         </div>
     </div>
 
-    <!-- MODAL TRANSAKSI -->
+    <!-- MODAL TAMBAH TRANSAKSI -->
     <div id="txModal" class="hidden fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
         <div class="bg-white p-6 rounded-2xl w-full max-w-sm space-y-4 shadow-2xl">
             <div class="flex justify-between items-center border-b pb-2">
@@ -221,7 +222,6 @@
         </div>
     </div>
 
-    <!-- Memuat file logika app.js terpisah -->
     <script src="app.js"></script>
 </body>
 </html>
