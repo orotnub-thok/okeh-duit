@@ -55,22 +55,82 @@ function findVal(obj, keywords) {
 }
 
 function renderApp() {
+    // AMBIL NILAI FILTER WAKTU ('this_month', 'this_year', 'all_time')
+    const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter').value : 'this_month';
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0 - 11
+
+    // 1. FILTER TRANSAKSI BERDASARKAN WAKTU
+    const filteredTransactions = appData.transactions.filter(t => {
+        let rawTanggal = findVal(t, ['tanggal', 'date']);
+        if (!rawTanggal) return false;
+
+        let d = new Date(rawTanggal);
+        if (isNaN(d.getTime())) {
+            d = new Date(String(rawTanggal).split('T')[0]);
+        }
+        if (isNaN(d.getTime())) return true;
+
+        const txYear = d.getFullYear();
+        const txMonth = d.getMonth();
+
+        if (filterValue === 'this_month') {
+            return txYear === currentYear && txMonth === currentMonth;
+        } else if (filterValue === 'this_year') {
+            return txYear === currentYear;
+        }
+        return true; // 'all_time'
+    });
+
+    // 2. HITUNG SALDO BERDASARKAN FILTER WAKTU
     const currencyTotals = {};
     const currencyWallets = {};
+    const walletPeriodBalances = {}; // Menyimpan saldo per wallet sesuai periode
+
+    // Hitung mutasi transaksi per wallet pada periode terpilih
+    filteredTransactions.forEach(t => {
+        const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
+        const fromW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '');
+        const toW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '');
+        const amount = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
+
+        if (tipe === 'income') {
+            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) + amount;
+        } else if (tipe === 'expense') {
+            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+        } else if (tipe === 'transfer') {
+            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            if (toW) {
+                walletPeriodBalances[toW] = (walletPeriodBalances[toW] || 0) + amount;
+            }
+        }
+    });
 
     appData.wallets.forEach(w => {
         const name = findVal(w, ['namawallet', 'wallet', 'nama']);
         if (!name) return;
 
         const curr = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
-        let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+        
+        let saldo = 0;
+        if (filterValue === 'all_time') {
+            // All Time mencakup Saldo Awal + Seluruh Mutasi
+            saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+        } else {
+            // Bulan Ini / Tahun Ini MURNI mutasi transaksi pada periode tersebut (tanpa saldo awal)
+            saldo = walletPeriodBalances[name] || 0;
+        }
+
+        // Buat objek wallet dengan saldo periodik untuk ditampilkan di rincian
+        const wProcessed = { ...w, computedSaldo: saldo };
 
         if (!currencyTotals[curr]) {
             currencyTotals[curr] = 0;
             currencyWallets[curr] = [];
         }
         currencyTotals[curr] += saldo;
-        currencyWallets[curr].push(w);
+        currencyWallets[curr].push(wProcessed);
     });
 
     const summaryList = document.getElementById('currencySummaryList');
@@ -107,35 +167,6 @@ function renderApp() {
         const curr = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
         selFrom.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
         selTo.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
-    });
-
-    // AMBIL NILAI FILTER WAKTU ('this_month', 'this_year', 'all_time')
-    const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter').value : 'this_month';
-    const now = new Date();
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth(); // 0 - 11
-
-    // Filter transaksi berdasarkan waktu
-    const filteredTransactions = appData.transactions.filter(t => {
-        let rawTanggal = findVal(t, ['tanggal', 'date']);
-        if (!rawTanggal) return false;
-
-        let d = new Date(rawTanggal);
-        if (isNaN(d.getTime())) {
-            // Fallback string parsing jika format tidak standar
-            d = new Date(String(rawTanggal).split('T')[0]);
-        }
-        if (isNaN(d.getTime())) return true; // Jika gagal parsing, tampilkan saja
-
-        const txYear = d.getFullYear();
-        const txMonth = d.getMonth();
-
-        if (filterValue === 'this_month') {
-            return txYear === currentYear && txMonth === currentMonth;
-        } else if (filterValue === 'this_year') {
-            return txYear === currentYear;
-        }
-        return true; // 'all_time'
     });
 
     const historyEl = document.getElementById('txHistory');
@@ -215,7 +246,7 @@ function openWalletDetail(curr) {
             if (!name) return;
 
             const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || curr).toUpperCase();
-            let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+            let saldo = w.computedSaldo !== undefined ? w.computedSaldo : (Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0);
             
             const saldoFmt = saldo.toLocaleString('id-ID');
             const symbol = curr === 'USD' ? '$' : 'Rp';
@@ -308,7 +339,7 @@ function renderWalletList() {
         const id = findVal(w, ['walletid', 'id', 'code']);
         const name = findVal(w, ['namawallet', 'wallet', 'nama']);
         const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || currentWalletTab).toUpperCase();
-        let saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+        let saldo = w.computedSaldo !== undefined ? w.computedSaldo : (Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0);
 
         const saldoFmt = saldo.toLocaleString('id-ID');
         const symbol = currentWalletTab === 'USD' ? '$' : 'Rp';
