@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwx_v5yAidzeg3BrGmYjwtbLRBg929rTGIXZspGPJgQCcVxB6NOpAsPAxdKZHbBC9w1/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbwqVuKsddQ2Dj2Sucz1SXEWfw464fO4zLu_QQhbuaJ3JmuxzuZzrDpbzhf1YRCxn8fT/exec";
 let appData = { wallets: [], categories: [], transactions: [] };
 let currentCatTab = 'Expense';
 let currentWalletTab = 'IDR';
