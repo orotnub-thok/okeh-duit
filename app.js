@@ -54,6 +54,11 @@ function findVal(obj, keywords) {
     return '';
 }
 
+// Fungsi bantu normalisasi string untuk pencocokan nama wallet
+function normalizeStr(str) {
+    return String(str || '').toLowerCase().trim();
+}
+
 function renderApp() {
     // AMBIL NILAI FILTER WAKTU ('this_month', 'this_year', 'all_time')
     const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter').value : 'this_month';
@@ -61,19 +66,23 @@ function renderApp() {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0 - 11
 
-    // 1. FILTER TRANSAKSI BERDASARKAN WAKTU
+    // 1. FILTER TRANSAKSI BERDASARKAN WAKTU (MENGGUNAKAN YYYY-MM-DD AMAN)
     const filteredTransactions = appData.transactions.filter(t => {
         let rawTanggal = findVal(t, ['tanggal', 'date']);
         if (!rawTanggal) return false;
 
-        let d = new Date(rawTanggal);
-        if (isNaN(d.getTime())) {
-            d = new Date(String(rawTanggal).split('T')[0]);
+        let dateStr = String(rawTanggal).split('T')[0];
+        // Jika format tanggal dari Apps Script berbentuk teks YYYY-MM-DD
+        let parts = dateStr.split('-');
+        if (parts.length !== 3) {
+            // Coba parsing standar jika bukan format yyyy-mm-dd
+            let d = new Date(rawTanggal);
+            if (isNaN(d.getTime())) return false;
+            parts = [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')];
         }
-        if (isNaN(d.getTime())) return true;
 
-        const txYear = d.getFullYear();
-        const txMonth = d.getMonth();
+        const txYear = parseInt(parts[0], 10);
+        const txMonth = parseInt(parts[1], 10) - 1; // 0-indexed
 
         if (filterValue === 'this_month') {
             return txYear === currentYear && txMonth === currentMonth;
@@ -86,21 +95,27 @@ function renderApp() {
     // 2. HITUNG SALDO BERDASARKAN FILTER WAKTU
     const currencyTotals = {};
     const currencyWallets = {};
-    const walletPeriodBalances = {}; // Menyimpan saldo per wallet sesuai periode
+    const walletPeriodBalances = {}; // Menyimpan akumulasi mutasi per wallet
 
-    // Hitung mutasi transaksi per wallet pada periode terpilih
     filteredTransactions.forEach(t => {
         const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
-        const fromW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '');
-        const toW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '');
+        const fromW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
+        const toW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
         const amount = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
 
         if (tipe === 'income') {
-            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) + amount;
+            // Income masuk ke wallet tujuan (di kolom Dari Wallet / Ke Wallet)
+            if (fromW) {
+                walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) + amount;
+            }
         } else if (tipe === 'expense') {
-            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            if (fromW) {
+                walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            }
         } else if (tipe === 'transfer') {
-            walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            if (fromW) {
+                walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            }
             if (toW) {
                 walletPeriodBalances[toW] = (walletPeriodBalances[toW] || 0) + amount;
             }
@@ -115,14 +130,32 @@ function renderApp() {
         
         let saldo = 0;
         if (filterValue === 'all_time') {
-            // All Time mencakup Saldo Awal + Seluruh Mutasi
-            saldo = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+            // All Time = Saldo Awal + Seluruh Mutasi
+            const initialBalance = Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0;
+            // Hitung seluruh mutasi sepanjang waktu untuk wallet ini
+            let allTimeMutasi = 0;
+            appData.transactions.forEach(t => {
+                const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
+                const fW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
+                const tW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
+                const amt = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
+
+                if (fW.toLowerCase() === name.toLowerCase()) {
+                    if (tipe === 'income') allTimeMutasi += amt;
+                    else if (tipe === 'expense' || tipe === 'transfer') allTimeMutasi -= amt;
+                }
+                if (tW.toLowerCase() === name.toLowerCase()) {
+                    if (tipe === 'transfer') allTimeMutasi += amt;
+                }
+            });
+            saldo = initialBalance + allTimeMutasi;
         } else {
-            // Bulan Ini / Tahun Ini MURNI mutasi transaksi pada periode tersebut (tanpa saldo awal)
-            saldo = walletPeriodBalances[name] || 0;
+            // Bulan Ini / Tahun Ini = Murni akumulasi mutasi transaksi pada periode tersebut
+            // Cari key yang case-insensitive di walletPeriodBalances
+            let matchedKey = Object.keys(walletPeriodBalances).find(k => k.toLowerCase() === name.toLowerCase());
+            saldo = matchedKey ? walletPeriodBalances[matchedKey] : 0;
         }
 
-        // Buat objek wallet dengan saldo periodik untuk ditampilkan di rincian
         const wProcessed = { ...w, computedSaldo: saldo };
 
         if (!currencyTotals[curr]) {
@@ -184,18 +217,7 @@ function renderApp() {
         const kategori = String(findVal(t, ['kategori', 'category']) || '');
         
         let rawTanggal = findVal(t, ['tanggal', 'date']);
-        let tanggal = '';
-        if (rawTanggal) {
-            let d = new Date(rawTanggal);
-            if (!isNaN(d.getTime())) {
-                let year = d.getUTCFullYear();
-                let month = String(d.getUTCMonth() + 1).padStart(2, '0');
-                let day = String(d.getUTCDate()).padStart(2, '0');
-                tanggal = `${year}-${month}-${day}`;
-            } else {
-                tanggal = String(rawTanggal).split('T')[0];
-            }
-        }
+        let tanggal = String(rawTanggal).split('T')[0];
 
         const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
         const txCurr = String(findVal(t, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
@@ -246,7 +268,7 @@ function openWalletDetail(curr) {
             if (!name) return;
 
             const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || curr).toUpperCase();
-            let saldo = w.computedSaldo !== undefined ? w.computedSaldo : (Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0);
+            let saldo = w.computedSaldo !== undefined ? w.computedSaldo : 0;
             
             const saldoFmt = saldo.toLocaleString('id-ID');
             const symbol = curr === 'USD' ? '$' : 'Rp';
@@ -339,7 +361,7 @@ function renderWalletList() {
         const id = findVal(w, ['walletid', 'id', 'code']);
         const name = findVal(w, ['namawallet', 'wallet', 'nama']);
         const currVal = String(findVal(w, ['matauang', 'currency', 'curr']) || currentWalletTab).toUpperCase();
-        let saldo = w.computedSaldo !== undefined ? w.computedSaldo : (Number(findVal(w, ['saldoakhir', 'saldoawal', 'balance', 'saldo'])) || 0);
+        let saldo = w.computedSaldo !== undefined ? w.computedSaldo : 0;
 
         const saldoFmt = saldo.toLocaleString('id-ID');
         const symbol = currentWalletTab === 'USD' ? '$' : 'Rp';
