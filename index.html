@@ -56,9 +56,17 @@
                 </button>
             </section>
 
-            <!-- Riwayat Transaksi -->
+            <!-- Riwayat Transaksi & Filter Waktu -->
             <section>
-                <h2 class="text-xs font-bold text-slate-500 tracking-wider mb-3">RIWAYAT TERAKHIR</h2>
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-xs font-bold text-slate-500 tracking-wider">RIWAYAT TRANSAKSI</h2>
+                    <!-- PILIHAN FILTER WAKTU -->
+                    <select id="timeFilter" onchange="renderApp()" class="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white font-medium text-slate-700 focus:outline-none focus:ring-1 focus:ring-emerald-500">
+                        <option value="this_month" selected>Bulan Ini Saja</option>
+                        <option value="this_year">Tahun Ini Saja</option>
+                        <option value="all_time">All Time (Sepanjang Waktu)</option>
+                    </select>
+                </div>
                 <div id="txHistory" class="space-y-2"></div>
             </section>
         </main>
