@@ -32,6 +32,7 @@ async function loadData() {
     const json = await res.json();
     if (json.success) {
         appData = json;
+        console.log("DATA DITERIMA DARI APPS SCRIPT:", appData); // <-- Cek F12 Console browser
         renderApp();
     }
 }
