@@ -36,7 +36,6 @@ async function loadData() {
     }
 }
 
-// Fungsi bantu universal untuk mencari nilai properti tanpa peduli spasi & huruf kapital
 function findVal(obj, keywords) {
     if (!obj) return '';
     const keys = Object.keys(obj);
@@ -60,7 +59,7 @@ function renderApp() {
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth(); // 0 - 11
 
-    // 1. FILTER TRANSAKSI BERDASARKAN WAKTU (AMAN DARI SEGALA FORMAT TANGGAL)
+    // 1. FILTER TRANSAKSI BERDASARKAN WAKTU
     const filteredTransactions = appData.transactions.filter(t => {
         let rawTanggal = findVal(t, ['tanggal', 'date']);
         if (!rawTanggal) return false;
@@ -90,24 +89,34 @@ function renderApp() {
         return true; // 'all_time'
     });
 
-    // 2. HITUNG SALDO BERDASARKAN FILTER WAKTU
+    // 2. HITUNG SALDO BERDASARKAN FILTER WAKTU (MENYESUAIKAN STRUKTUR SHEET)
     const currencyTotals = {};
     const currencyWallets = {};
     const walletPeriodBalances = {};
 
     filteredTransactions.forEach(t => {
         const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
-        const fromW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
-        const toW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
+        const mainWallet = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
+        const targetWallet = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
         const amount = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
 
         if (tipe === 'income') {
-            if (fromW) walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) + amount;
+            // Income masuk ke wallet di kolom "Dari Wallet"
+            if (mainWallet) {
+                walletPeriodBalances[mainWallet] = (walletPeriodBalances[mainWallet] || 0) + amount;
+            }
         } else if (tipe === 'expense') {
-            if (fromW) walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
+            // Expense keluar dari wallet di kolom "Dari Wallet"
+            if (mainWallet) {
+                walletPeriodBalances[mainWallet] = (walletPeriodBalances[mainWallet] || 0) - amount;
+            }
         } else if (tipe === 'transfer') {
-            if (fromW) walletPeriodBalances[fromW] = (walletPeriodBalances[fromW] || 0) - amount;
-            if (toW) walletPeriodBalances[toW] = (walletPeriodBalances[toW] || 0) + amount;
+            if (mainWallet) {
+                walletPeriodBalances[mainWallet] = (walletPeriodBalances[mainWallet] || 0) - amount;
+            }
+            if (targetWallet) {
+                walletPeriodBalances[targetWallet] = (walletPeriodBalances[targetWallet] || 0) + amount;
+            }
         }
     });
 
@@ -123,15 +132,15 @@ function renderApp() {
             let allTimeMutasi = 0;
             appData.transactions.forEach(t => {
                 const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
-                const fW = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
-                const tW = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
+                const mWallet = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '').trim();
+                const tWallet = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '').trim();
                 const amt = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
 
-                if (fW.toLowerCase() === name.toLowerCase()) {
+                if (mWallet.toLowerCase() === name.toLowerCase()) {
                     if (tipe === 'income') allTimeMutasi += amt;
                     else if (tipe === 'expense' || tipe === 'transfer') allTimeMutasi -= amt;
                 }
-                if (tW.toLowerCase() === name.toLowerCase()) {
+                if (tWallet.toLowerCase() === name.toLowerCase()) {
                     if (tipe === 'transfer') allTimeMutasi += amt;
                 }
             });
