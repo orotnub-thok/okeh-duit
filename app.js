@@ -109,20 +109,54 @@ function renderApp() {
         selTo.innerHTML += `<option value="${name}">${name} (${curr})</option>`;
     });
 
+    // AMBIL NILAI FILTER WAKTU ('this_month', 'this_year', 'all_time')
+    const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter').value : 'this_month';
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth(); // 0 - 11
+
+    // Filter transaksi berdasarkan waktu
+    const filteredTransactions = appData.transactions.filter(t => {
+        let rawTanggal = findVal(t, ['tanggal', 'date']);
+        if (!rawTanggal) return false;
+
+        let d = new Date(rawTanggal);
+        if (isNaN(d.getTime())) {
+            // Fallback string parsing jika format tidak standar
+            d = new Date(String(rawTanggal).split('T')[0]);
+        }
+        if (isNaN(d.getTime())) return true; // Jika gagal parsing, tampilkan saja
+
+        const txYear = d.getFullYear();
+        const txMonth = d.getMonth();
+
+        if (filterValue === 'this_month') {
+            return txYear === currentYear && txMonth === currentMonth;
+        } else if (filterValue === 'this_year') {
+            return txYear === currentYear;
+        }
+        return true; // 'all_time'
+    });
+
     const historyEl = document.getElementById('txHistory');
     historyEl.innerHTML = '';
-    [...appData.transactions].reverse().slice(0, 10).forEach(t => {
+
+    if (filteredTransactions.length === 0) {
+        historyEl.innerHTML = `<div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 text-center text-xs text-slate-400">Tidak ada transaksi pada periode ini.</div>`;
+        return;
+    }
+
+    [...filteredTransactions].reverse().slice(0, 15).forEach(t => {
         const jumlah = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
         const jumlahFmt = jumlah.toLocaleString('id-ID');
         const tipe = String(findVal(t, ['tipe', 'type']) || '');
         const kategori = String(findVal(t, ['kategori', 'category']) || '');
+        
         let rawTanggal = findVal(t, ['tanggal', 'date']);
         let tanggal = '';
         if (rawTanggal) {
-            // Jika berupa objek Date atau string ISO, ambil bagian YYYY-MM-DD nya saja secara aman
             let d = new Date(rawTanggal);
             if (!isNaN(d.getTime())) {
-                // Gunakan komponen UTC agar tidak bergeser akibat timezone browser
                 let year = d.getUTCFullYear();
                 let month = String(d.getUTCMonth() + 1).padStart(2, '0');
                 let day = String(d.getUTCDate()).padStart(2, '0');
@@ -131,6 +165,7 @@ function renderApp() {
                 tanggal = String(rawTanggal).split('T')[0];
             }
         }
+
         const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
         const txCurr = String(findVal(t, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
 
