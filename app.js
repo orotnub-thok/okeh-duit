@@ -54,7 +54,7 @@ function findVal(obj, keywords) {
 }
 
 function renderApp() {
-    const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter'].value : 'this_month';
+    const filterValue = document.getElementById('timeFilter') ? document.getElementById('timeFilter').value : 'this_month';
     const now = new Date();
     const currentYear = now.getFullYear();
     const currentMonth = now.getMonth();
