@@ -1,0 +1,2 @@
+// config.js
+const API_URL = "URL_APPS_SCRIPT_TERBARU_ANDA_DI_SINI";
