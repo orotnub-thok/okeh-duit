@@ -1,4 +1,4 @@
-const API_URL = "https://script.google.com/macros/s/AKfycbwXJQ5aWfu8HgV0qlaVAnjwtFulWjxkY109Td0mHXyUWo4N6PN2h_hmFLULZ90oI_Q/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxCYc845p8-JndgMEg8HXOGWN92xOsJLC1JiNqxTXIrfN7LKNTDvmOpaozebVABDc-4/exec";
 let riwayatData = { wallets: [], categories: [], transactions: [] };
 
 window.onload = function() {
