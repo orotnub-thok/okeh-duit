@@ -158,7 +158,10 @@ document.addEventListener("DOMContentLoaded", () => {
         // Filter lanjutan jika kategori di kiri diklik
         let finalTrx = filteredTrx;
         if (selectedCategory !== "Semua") {
-            finalTrx = filteredTrx.filter(t => (t.kategori || t.namakategori || "Tanpa Kategori") === selectedCategory);
+            finalTrx = filteredTrx.filter(t => {
+                const cat = (!t.kategori || t.kategori === "undefined") ? "Tanpa Kategori" : t.kategori;
+                return cat === selectedCategory;
+            });
             judul.innerText = `Kategori: ${selectedCategory}`;
         } else {
             judul.innerText = "Daftar Transaksi";
@@ -177,19 +180,43 @@ document.addEventListener("DOMContentLoaded", () => {
             const isTransfer = t.tipe === "Transfer";
             const colorClass = isExpense ? "text-rose-600" : (isTransfer ? "text-blue-600" : "text-emerald-600");
             const sign = isExpense ? "- " : (isTransfer ? "" : "+ ");
-            const nominal = Number(t.jumlah).toLocaleString('id-ID');
-            const kategoriNama = t.kategori || t.namakategori || 'Umum';
+            const nominal = Number(t.jumlah || 0).toLocaleString('id-ID');
             
-            // Format ringkas: Tanggal, Kategori/Catatan, Nilai
+            const kategoriNama = (!t.kategori || t.kategori === "undefined") ? "Umum" : t.kategori;
+            
+            // Susunan informasi wallet & transfer secara vertikal ke bawah
+            let walletInfo = "";
+            if (isTransfer) {
+                const dariW = t.darivallet || "-";
+                const keW = t.kewallet || "-";
+                walletInfo = `<div class="text-[11px] text-blue-500 font-medium mt-1">Transfer: ${dariW} → ${keW}</div>`;
+            } else {
+                const singleW = t.darivallet || t.kewallet || "-";
+                walletInfo = `<div class="text-[11px] text-gray-500 font-medium mt-1">${singleW}</div>`;
+            }
+            
+            // Layout card transaksi dengan susunan vertikal ke bawah (tidak desak-desakan ke samping)
             html += `
-                <div class="p-3 bg-gray-50 hover:bg-gray-100 border rounded-xl flex justify-between items-center cursor-pointer transition" onclick='openDetailModal(${JSON.stringify(t)})'>
-                    <div>
-                        <div class="text-[11px] text-gray-400 mb-0.5">${t.tanggal} • <span class="font-medium text-gray-600">${kategoriNama}</span></div>
-                        <div class="text-sm font-medium text-gray-800">${t.catatan || '(Tanpa Catatan)'}</div>
-                        ${isTransfer ? `<div class="text-[10px] text-blue-500 mt-0.5">${t.darivallet} → ${t.kewallet}</div>` : `<div class="text-[10px] text-gray-500 mt-0.5">${t.darivallet || t.kewallet || ''}</div>`}
+                <div class="p-3.5 bg-gray-50 hover:bg-gray-100 border rounded-xl cursor-pointer transition flex flex-col space-y-2" onclick='openDetailModal(${JSON.stringify(t)})'>
+                    <!-- Baris Atas: Tanggal & Kategori -->
+                    <div class="flex justify-between items-center text-[11px] text-gray-400 border-b pb-1.5">
+                        <span>${t.tanggal}</span>
+                        <span class="font-medium text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded">${kategoriNama}</span>
                     </div>
-                    <div class="text-right">
-                        <div class="text-sm font-bold ${colorClass}">${sign}Rp ${nominal}</div>
+
+                    <!-- Baris Tengah: Catatan Transaksi -->
+                    <div class="text-sm font-semibold text-gray-800">
+                        ${t.catatan || '(Tanpa Catatan)'}
+                    </div>
+
+                    <!-- Baris Bawah: Wallet di atas, Nominal Nilai di bawahnya -->
+                    <div class="flex justify-between items-end pt-1">
+                        <div>
+                            ${walletInfo}
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm font-bold ${colorClass}">${sign}Rp ${nominal}</div>
+                        </div>
                     </div>
                 </div>
             `;
