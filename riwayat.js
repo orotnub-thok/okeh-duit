@@ -115,10 +115,10 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderSidebarCategories(filteredTrx) {
         const sidebar = document.getElementById("listKategoriSidebar");
         
-        // Hitung total per kategori
+        // Hitung total per kategori (mendukung t.kategori maupun fallback)
         let catMap = {};
         filteredTrx.forEach(t => {
-            let cat = t.kategori || "Tanpa Kategori";
+            let cat = t.kategori || t.namakategori || "Tanpa Kategori";
             if (!catMap[cat]) catMap[cat] = { count: 0, total: 0 };
             catMap[cat].count++;
             catMap[cat].total += Number(t.jumlah || 0);
@@ -158,7 +158,7 @@ document.addEventListener("DOMContentLoaded", () => {
         // Filter lanjutan jika kategori di kiri diklik
         let finalTrx = filteredTrx;
         if (selectedCategory !== "Semua") {
-            finalTrx = filteredTrx.filter(t => (t.kategori || "Tanpa Kategori") === selectedCategory);
+            finalTrx = filteredTrx.filter(t => (t.kategori || t.namakategori || "Tanpa Kategori") === selectedCategory);
             judul.innerText = `Kategori: ${selectedCategory}`;
         } else {
             judul.innerText = "Daftar Transaksi";
@@ -178,12 +178,13 @@ document.addEventListener("DOMContentLoaded", () => {
             const colorClass = isExpense ? "text-rose-600" : (isTransfer ? "text-blue-600" : "text-emerald-600");
             const sign = isExpense ? "- " : (isTransfer ? "" : "+ ");
             const nominal = Number(t.jumlah).toLocaleString('id-ID');
+            const kategoriNama = t.kategori || t.namakategori || 'Umum';
             
-            // Format ringkas: Tanggal, Catatan, Nilai
+            // Format ringkas: Tanggal, Kategori/Catatan, Nilai
             html += `
                 <div class="p-3 bg-gray-50 hover:bg-gray-100 border rounded-xl flex justify-between items-center cursor-pointer transition" onclick='openDetailModal(${JSON.stringify(t)})'>
                     <div>
-                        <div class="text-[11px] text-gray-400 mb-0.5">${t.tanggal} • <span class="font-medium text-gray-600">${t.kategori || 'Umum'}</span></div>
+                        <div class="text-[11px] text-gray-400 mb-0.5">${t.tanggal} • <span class="font-medium text-gray-600">${kategoriNama}</span></div>
                         <div class="text-sm font-medium text-gray-800">${t.catatan || '(Tanpa Catatan)'}</div>
                         ${isTransfer ? `<div class="text-[10px] text-blue-500 mt-0.5">${t.darivallet} → ${t.kewallet}</div>` : `<div class="text-[10px] text-gray-500 mt-0.5">${t.darivallet || t.kewallet || ''}</div>`}
                     </div>
