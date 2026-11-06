@@ -53,8 +53,9 @@ document.addEventListener("DOMContentLoaded", () => {
         let editOptions = ``;
 
         allWallets.forEach(w => {
-            walletOptions += `<option value="${w.nama}">${w.nama}</option>`;
-            editOptions += `<option value="${w.nama}">${w.nama}</option>`;
+            // Menggunakan w.namawallet sesuai struktur dari Backend GAS
+            walletOptions += `<option value="${w.namawallet}">${w.namawallet}</option>`;
+            editOptions += `<option value="${w.namawallet}">${w.namawallet}</option>`;
         });
 
         filterWallet.innerHTML = walletOptions;
