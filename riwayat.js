@@ -19,33 +19,28 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function loadData() {
         try {
-            const callAPI = async (actionName) => {
-                // Mengirim action lewat parameter URL POST
-                const res = await fetch(`${API_URL}?action=${actionName}`, {
-                    method: 'POST'
-                });
-                return await res.json();
-            };
+            // Backend Apps Script menggunakan action 'getData' untuk mengambil semuanya sekaligus
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({ action: 'getData' })
+            });
+            const result = await res.json();
 
-            const [resTrx, resWallet, resCat] = await Promise.all([
-                callAPI('getTransactions'),
-                callAPI('getWallets'),
-                callAPI('getCategories')
-            ]);
+            console.log("Response Data dari Server:", result);
 
-            console.log("Response Transaksi dari Server:", resTrx);
-            console.log("Response Wallet dari Server:", resWallet);
-            console.log("Response Kategori dari Server:", resCat);
+            if (result.success) {
+                allTransactions = result.transactions || [];
+                allWallets = result.wallets || [];
+                allCategories = result.categories || [];
 
-            allTransactions = resTrx.data || [];
-            allWallets = resWallet.data || [];
-            allCategories = resCat.data || [];
-
-            populateWalletDropdowns();
-            filterAndRender();
+                populateWalletDropdowns();
+                filterAndRender();
+            } else {
+                alert("Gagal memuat data: " + result.message);
+            }
         } catch (err) {
             console.error("Gagal memuat data:", err);
-            alert("Gagal memuat data dari server.");
+            alert("Terjadi kesalahan jaringan saat memuat data.");
         }
     }
 
