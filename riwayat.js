@@ -17,7 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("filterWallet").addEventListener("change", filterAndRender);
     document.getElementById("btnRefresh").addEventListener("click", loadData);
 
-  async function loadData() {
+    async function loadData() {
         try {
             // Backend Apps Script menggunakan action 'getData' untuk mengambil semuanya sekaligus
             const res = await fetch(API_URL, {
@@ -59,8 +59,8 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         filterWallet.innerHTML = walletOptions;
-        editDari.innerHTML = editOptions;
-        editKe.innerHTML = editOptions;
+        if (editDari) editDari.innerHTML = editOptions;
+        if (editKe) editKe.innerHTML = editOptions;
     }
 
     function initFilterOptions() {
@@ -115,28 +115,30 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderSidebarCategories(filteredTrx) {
         const sidebar = document.getElementById("listKategoriSidebar");
         
-        // Hitung total per kategori (mendukung t.kategori maupun fallback)
+        // Hitung total per kategori
         let catMap = {};
         filteredTrx.forEach(t => {
-            let cat = t.kategori || t.namakategori || "Tanpa Kategori";
+            let cat = (!t.kategori || t.kategori === "undefined") ? "Tanpa Kategori" : t.kategori;
             if (!catMap[cat]) catMap[cat] = { count: 0, total: 0 };
             catMap[cat].count++;
             catMap[cat].total += Number(t.jumlah || 0);
         });
 
+        // "Semua Kategori" dengan jumlah item di bawah nama kategorinya
         let html = `
-            <div class="p-2 rounded-lg cursor-pointer transition text-xs font-medium flex justify-between items-center ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
-                <span>Semua Kategori</span>
-                <span class="text-gray-500">${filteredTrx.length}</span>
+            <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
+                <span class="font-medium">Semua Kategori</span>
+                <span class="text-gray-400 text-[10px]">${filteredTrx.length} item</span>
             </div>
         `;
 
         for (const [catName, data] of Object.entries(catMap)) {
             const isActive = (selectedCategory === catName);
+            // Nama kategori di atas, jumlah item diposisikan di bawahnya secara vertikal
             html += `
-                <div class="p-2 rounded-lg cursor-pointer transition text-xs flex justify-between items-center ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('${catName}')">
-                    <span class="truncate pr-2">${catName}</span>
-                    <span class="text-gray-500 text-[10px]">${data.count}</span>
+                <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('${catName}')">
+                    <span class="truncate font-medium">${catName}</span>
+                    <span class="text-gray-400 text-[10px]">${data.count} item</span>
                 </div>
             `;
         }
@@ -167,7 +169,9 @@ document.addEventListener("DOMContentLoaded", () => {
             judul.innerText = "Daftar Transaksi";
         }
 
-        counter.innerText = `${finalTrx.length} item`;
+        if (counter) {
+            counter.innerText = `${finalTrx.length} item`;
+        }
 
         if (finalTrx.length === 0) {
             container.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">Tidak ada transaksi ditemukan.</p>`;
@@ -194,7 +198,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 walletInfo = t.darivallet || t.kewallet || "-";
             }
             
-            // Susunan vertikal murni dari atas ke bawah: Tanggal -> Kategori -> Wallet -> Nilai
+            // Susunan vertikal murni dari atas ke bawah: Tanggal -> Kategori -> Wallet -> Nilai (Tanpa Catatan)
             html += `
                 <div class="p-3.5 bg-gray-50 hover:bg-gray-100 border rounded-xl cursor-pointer transition flex flex-col space-y-1.5" onclick='openDetailModal(${JSON.stringify(t)})'>
                     <!-- 1. Tanggal -->
@@ -225,29 +229,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Modal Handler & Logic Edit/Delete
     window.openDetailModal = function(trx) {
-        document.getElementById("editId").value = trx.transactionid;
-        document.getElementById("editTanggal").value = trx.tanggal;
-        document.getElementById("editTipe").value = trx.tipe;
-        document.getElementById("editJumlah").value = trx.jumlah;
-        document.getElementById("editCatatan").value = trx.catatan || "";
+        const editId = document.getElementById("editId");
+        const editTanggal = document.getElementById("editTanggal");
+        const editTipe = document.getElementById("editTipe");
+        const editJumlah = document.getElementById("editJumlah");
+        const editCatatan = document.getElementById("editCatatan");
+
+        if (editId) editId.value = trx.transactionid;
+        if (editTanggal) editTanggal.value = trx.tanggal;
+        if (editTipe) editTipe.value = trx.tipe;
+        if (editJumlah) editJumlah.value = trx.jumlah;
+        if (editCatatan) editCatatan.value = trx.catatan || "";
         
-        if(trx.darivallet) document.getElementById("editDariWallet").value = trx.darivallet;
-        if(trx.kewallet) document.getElementById("editKeWallet").value = trx.kewallet;
+        if(trx.darivallet) {
+            const el = document.getElementById("editDariWallet");
+            if(el) el.value = trx.darivallet;
+        }
+        if(trx.kewallet) {
+            const el = document.getElementById("editKeWallet");
+            if(el) el.value = trx.kewallet;
+        }
 
         const catSelect = document.getElementById("editKategori");
-        catSelect.innerHTML = allCategories.map(c => `<option value="${c.nama}" ${c.nama === trx.kategori ? 'selected' : ''}>${c.nama}</option>`).join('');
+        if (catSelect) {
+            catSelect.innerHTML = allCategories.map(c => `<option value="${c.namakategori || c.nama}" ${(c.namakategori || c.nama) === trx.kategori ? 'selected' : ''}>${c.namakategori || c.nama}</option>`).join('');
+        }
 
         setFormEnabled(false);
-        document.getElementById("modalTransaksi").classList.remove("hidden");
+        const modal = document.getElementById("modalTransaksi");
+        if (modal) modal.classList.remove("hidden");
     };
 
-    document.getElementById("btnModalClose").addEventListener("click", () => {
-        document.getElementById("modalTransaksi").classList.add("hidden");
-    });
+    const btnClose = document.getElementById("btnModalClose");
+    if (btnClose) {
+        btnClose.addEventListener("click", () => {
+            document.getElementById("modalTransaksi").classList.add("hidden");
+        });
+    }
 
-    document.getElementById("btnModalEdit").addEventListener("click", () => {
-        setFormEnabled(true); // Aktifkan input agar bisa diedit
-    });
+    const btnEdit = document.getElementById("btnModalEdit");
+    if (btnEdit) {
+        btnEdit.addEventListener("click", () => {
+            setFormEnabled(true); // Aktifkan input agar bisa diedit
+        });
+    }
 
     function setFormEnabled(enabled) {
         const fields = ["editTanggal", "editTipe", "editJumlah", "editDariWallet", "editKeWallet", "editKategori", "editCatatan"];
@@ -266,76 +291,84 @@ document.addEventListener("DOMContentLoaded", () => {
         });
 
         const actionContainer = document.getElementById("actionContainer");
-        if(enabled) {
-            actionContainer.classList.remove("hidden");
-        } else {
-            actionContainer.classList.add("hidden");
+        if(actionContainer) {
+            if(enabled) {
+                actionContainer.classList.remove("hidden");
+            } else {
+                actionContainer.classList.add("hidden");
+            }
         }
     }
 
     // Tombol Delete di Modal
-    document.getElementById("btnModalDelete").addEventListener("click", async () => {
-        const id = document.getElementById("editId").value;
-        if(confirm("Yakin ingin menghapus transaksi ini?")) {
+    const btnDelete = document.getElementById("btnModalDelete");
+    if (btnDelete) {
+        btnDelete.addEventListener("click", async () => {
+            const id = document.getElementById("editId").value;
+            if(confirm("Yakin ingin menghapus transaksi ini?")) {
+                try {
+                    const res = await fetch(API_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ action: 'deleteTransaction', transactionid: id })
+                    });
+                    const result = await res.json();
+                    if(result.success) {
+                        alert("Transaksi berhasil dihapus!");
+                        document.getElementById("modalTransaksi").classList.add("hidden");
+                        loadData();
+                    } else {
+                        alert("Gagal menghapus: " + result.message);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    alert("Terjadi kesalahan jaringan.");
+                }
+            }
+        });
+    }
+
+    // Event listener untuk Submit Form Edit Transaksi
+    const formDetail = document.getElementById("formDetailTransaksi");
+    if (formDetail) {
+        formDetail.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById("editId").value;
+            const tanggal = document.getElementById("editTanggal").value;
+            const tipe = document.getElementById("editTipe").value;
+            const jumlah = document.getElementById("editJumlah").value;
+            const dariWallet = document.getElementById("editDariWallet").value;
+            const keWallet = document.getElementById("editKeWallet").value;
+            const kategori = document.getElementById("editKategori").value;
+            const catatan = document.getElementById("editCatatan").value;
+
             try {
                 const res = await fetch(API_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ action: 'deleteTransaction', transactionid: id })
+                    body: JSON.stringify({
+                        action: 'editTransaction',
+                        transactionid: id,
+                        tanggal: tanggal,
+                        tipe: tipe,
+                        darivallet: dariWallet,
+                        kewallet: keWallet,
+                        kategori: kategori,
+                        jumlah: jumlah,
+                        catatan: catatan
+                    })
                 });
                 const result = await res.json();
                 if(result.success) {
-                    alert("Transaksi berhasil dihapus!");
+                    alert("Transaksi berhasil diperbarui!");
                     document.getElementById("modalTransaksi").classList.add("hidden");
-                    loadData();
+                    loadData(); // Reload data terbaru
                 } else {
-                    alert("Gagal menghapus: " + result.message);
+                    alert("Gagal memperbarui: " + result.message);
                 }
-            } catch(e) {
-                console.error(e);
-                alert("Terjadi kesalahan jaringan.");
+            } catch(err) {
+                console.error(err);
+                alert("Terjadi kesalahan jaringan saat menyimpan perubahan.");
             }
-        }
-    });
-
-    // Event listener untuk Submit Form Edit Transaksi
-    document.getElementById("formDetailTransaksi").addEventListener("submit", async (e) => {
-        e.preventDefault();
-        
-        const id = document.getElementById("editId").value;
-        const tanggal = document.getElementById("editTanggal").value;
-        const tipe = document.getElementById("editTipe").value;
-        const jumlah = document.getElementById("editJumlah").value;
-        const dariWallet = document.getElementById("editDariWallet").value;
-        const keWallet = document.getElementById("editKeWallet").value;
-        const kategori = document.getElementById("editKategori").value;
-        const catatan = document.getElementById("editCatatan").value;
-
-        try {
-            const res = await fetch(API_URL, {
-                method: 'POST',
-                body: JSON.stringify({
-                    action: 'editTransaction',
-                    transactionid: id,
-                    tanggal: tanggal,
-                    tipe: tipe,
-                    darivallet: dariWallet,
-                    kewallet: keWallet,
-                    kategori: kategori,
-                    jumlah: jumlah,
-                    catatan: catatan
-                })
-            });
-            const result = await res.json();
-            if(result.success) {
-                alert("Transaksi berhasil diperbarui!");
-                document.getElementById("modalTransaksi").classList.add("hidden");
-                loadData(); // Reload data terbaru
-            } else {
-                alert("Gagal memperbarui: " + result.message);
-            }
-        } catch(err) {
-            console.error(err);
-            alert("Terjadi kesalahan jaringan saat menyimpan perubahan.");
-        }
-    });
+        });
+    }
 });
