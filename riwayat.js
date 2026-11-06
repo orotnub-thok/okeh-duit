@@ -184,39 +184,37 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const kategoriNama = (!t.kategori || t.kategori === "undefined") ? "Umum" : t.kategori;
             
-            // Susunan informasi wallet & transfer secara vertikal ke bawah
+            // Format wallet secara vertikal
             let walletInfo = "";
             if (isTransfer) {
                 const dariW = t.darivallet || "-";
                 const keW = t.kewallet || "-";
-                walletInfo = `<div class="text-[11px] text-blue-500 font-medium mt-1">Transfer: ${dariW} → ${keW}</div>`;
+                walletInfo = `Transfer: ${dariW} → ${keW}`;
             } else {
-                const singleW = t.darivallet || t.kewallet || "-";
-                walletInfo = `<div class="text-[11px] text-gray-500 font-medium mt-1">${singleW}</div>`;
+                walletInfo = t.darivallet || t.kewallet || "-";
             }
             
-            // Layout card transaksi dengan susunan vertikal ke bawah (tidak desak-desakan ke samping)
+            // Susunan vertikal murni dari atas ke bawah: Tanggal -> Kategori -> Wallet -> Nilai
             html += `
-                <div class="p-3.5 bg-gray-50 hover:bg-gray-100 border rounded-xl cursor-pointer transition flex flex-col space-y-2" onclick='openDetailModal(${JSON.stringify(t)})'>
-                    <!-- Baris Atas: Tanggal & Kategori -->
-                    <div class="flex justify-between items-center text-[11px] text-gray-400 border-b pb-1.5">
-                        <span>${t.tanggal}</span>
-                        <span class="font-medium text-gray-600 bg-gray-200/60 px-2 py-0.5 rounded">${kategoriNama}</span>
+                <div class="p-3.5 bg-gray-50 hover:bg-gray-100 border rounded-xl cursor-pointer transition flex flex-col space-y-1.5" onclick='openDetailModal(${JSON.stringify(t)})'>
+                    <!-- 1. Tanggal -->
+                    <div class="text-[11px] text-gray-400 font-medium">
+                        ${t.tanggal}
                     </div>
 
-                    <!-- Baris Tengah: Catatan Transaksi -->
-                    <div class="text-sm font-semibold text-gray-800">
-                        ${t.catatan || '(Tanpa Catatan)'}
+                    <!-- 2. Kategori -->
+                    <div class="text-xs font-semibold text-gray-700">
+                        ${kategoriNama}
                     </div>
 
-                    <!-- Baris Bawah: Wallet di atas, Nominal Nilai di bawahnya -->
-                    <div class="flex justify-between items-end pt-1">
-                        <div>
-                            ${walletInfo}
-                        </div>
-                        <div class="text-right">
-                            <div class="text-sm font-bold ${colorClass}">${sign}Rp ${nominal}</div>
-                        </div>
+                    <!-- 3. Wallet -->
+                    <div class="text-xs text-gray-500 font-medium">
+                        ${walletInfo}
+                    </div>
+
+                    <!-- 4. Nilai (Nominal) di bawah wallet -->
+                    <div class="text-sm font-bold ${colorClass} pt-1">
+                        ${sign}Rp ${nominal}
                     </div>
                 </div>
             `;
