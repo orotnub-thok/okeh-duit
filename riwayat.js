@@ -19,14 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Menggunakan URLSearchParams agar terbaca sebagai parameter standar oleh doPost di Apps Script
+            // Mengembalikan ke format JSON.stringify yang sesuai dengan struktur doPost Apps Script Anda
             const fetchAction = async (actionName) => {
-                const params = new URLSearchParams();
-                params.append('action', actionName);
-
                 const res = await fetch(API_URL, {
                     method: 'POST',
-                    body: params
+                    body: JSON.stringify({ action: actionName })
                 });
                 return await res.json();
             };
