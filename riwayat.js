@@ -19,12 +19,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Mengirim action sebagai parameter URL (query string) pada method POST
-            // Ini dijamin cocok dengan cara Code.gs membaca e.parameter
+            // Mengirim action di dalam body JSON, persis seperti yang diminta Code.gs (e.postData.contents)
             const callAPI = async (actionName) => {
-                const url = `${API_URL}?action=${actionName}`;
-                const res = await fetch(url, {
-                    method: 'POST'
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: actionName })
                 });
                 return await res.json();
             };
