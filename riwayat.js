@@ -1,297 +1,308 @@
-let riwayatData = { wallets: [], categories: [], transactions: [] };
+document.addEventListener("DOMContentLoaded", () => {
+    let allTransactions = [];
+    let allWallets = [];
+    let allCategories = [];
+    let selectedCategory = "Semua"; // Default tampilkan semua kategori
 
-window.onload = function() {
-    if (localStorage.getItem('okeh_logged_in') !== 'true') {
-        window.location.href = 'index.html';
-        return;
-    }
-    loadRiwayatData();
-};
+    // Inisialisasi dropdown filter Tahun & Bulan
+    initFilterOptions();
 
-async function loadRiwayatData() {
-    const container = document.getElementById('riwayatList');
-    container.innerHTML = `<div class="text-center text-xs text-slate-400 py-8">Memuat riwayat transaksi...</div>`;
+    // Load data awal dari backend
+    loadData();
 
-    try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'getData' }) });
-        const json = await res.json();
-        if (json.success) {
-            riwayatData = json;
-            populateYearFilter();
-            renderRiwayat();
-        }
-    } catch (e) {
-        console.error(e);
-        container.innerHTML = `<div class="text-center text-xs text-red-500 py-8">Gagal memuat data. Periksa koneksi internet.</div>`;
-    }
-}
+    // Event listener perubahan filter
+    document.getElementById("filterTahun").addEventListener("change", filterAndRender);
+    document.getElementById("filterBulan").addEventListener("change", filterAndRender);
+    document.getElementById("filterJenis").addEventListener("change", filterAndRender);
+    document.getElementById("filterWallet").addEventListener("change", filterAndRender);
+    document.getElementById("btnRefresh").addEventListener("click", loadData);
 
-function findVal(obj, keywords) {
-    if (!obj) return '';
-    const keys = Object.keys(obj);
-    for (let kw of keywords) {
-        const cleanKw = kw.toLowerCase().replace(/[^a-z0-9]/g, '');
-        for (let k of keys) {
-            const cleanK = k.toLowerCase().replace(/[^a-z0-9]/g, '');
-            if (cleanK.includes(cleanKw) || cleanKw.includes(cleanK)) {
-                if (obj[k] !== undefined && obj[k] !== null && obj[k] !== '') {
-                    return obj[k];
-                }
-            }
+    async function loadData() {
+        try {
+            // Fetch Transaksi, Wallet, dan Kategori secara paralel
+            const [resTrx, resWallet, resCat] = await Promise.all([
+                fetch(`${API_URL}?action=getTransactions`).then(res => res.json()),
+                fetch(`${API_URL}?action=getWallets`).then(res => res.json()),
+                fetch(`${API_URL}?action=getCategories`).then(res => res.json())
+            ]);
+
+            allTransactions = resTrx.data || [];
+            allWallets = resWallet.data || [];
+            allCategories = resCat.data || [];
+
+            populateWalletDropdowns();
+            filterAndRender();
+        } catch (err) {
+            console.error("Gagal memuat data:", err);
+            alert("Gagal memuat data dari server.");
         }
     }
-    return '';
-}
 
-function populateYearFilter() {
-    const yearSelect = document.getElementById('filterYear');
-    const years = new Set();
-    const currentYear = new Date().getFullYear();
-    years.add(currentYear);
+    function populateWalletDropdowns() {
+        const filterWallet = document.getElementById("filterWallet");
+        const editDari = document.getElementById("editDariWallet");
+        const editKe = document.getElementById("editKeWallet");
 
-    riwayatData.transactions.forEach(t => {
-        let rawTanggal = findVal(t, ['tanggal', 'date']);
-        if (rawTanggal) {
-            let y = new Date(rawTanggal).getFullYear();
-            if (!isNaN(y)) years.add(y);
-        }
-    });
+        let walletOptions = `<option value="Semua">Semua Wallet</option>`;
+        let editOptions = ``;
 
-    const sortedYears = Array.from(years).sort((a, b) => b - a);
-    yearSelect.innerHTML = `<option value="all">Semua Tahun</option>`;
-    sortedYears.forEach(y => {
-        yearSelect.innerHTML += `<option value="${y}" ${y === currentYear ? 'selected' : ''}>${y}</option>`;
-    });
+        allWallets.forEach(w => {
+            walletOptions += `<option value="${w.nama}">${w.nama}</option>`;
+            editOptions += `<option value="${w.nama}">${w.nama}</option>`;
+        });
 
-    // Set bulan saat ini sebagai default
-    document.getElementById('filterMonth').value = new Date().getMonth().toString();
-}
-
-function renderRiwayat() {
-    const container = document.getElementById('riwayatList');
-    const selectedYear = document.getElementById('filterYear').value;
-    const selectedMonth = document.getElementById('filterMonth').value;
-    const selectedType = document.getElementById('filterType').value;
-
-    container.innerHTML = '';
-
-    const filtered = riwayatData.transactions.filter(t => {
-        let rawTanggal = findVal(t, ['tanggal', 'date']);
-        if (!rawTanggal) return false;
-
-        let d = new Date(rawTanggal);
-        if (isNaN(d.getTime())) return false;
-
-        const txYear = d.getFullYear().toString();
-        const txMonth = d.getMonth().toString();
-        const tipe = String(findVal(t, ['tipe', 'type']) || '').toLowerCase();
-
-        if (selectedYear !== 'all' && txYear !== selectedYear) return false;
-        if (selectedMonth !== 'all' && txMonth !== selectedMonth) return false;
-        if (selectedType !== 'all' && tipe !== selectedType.toLowerCase()) return false;
-
-        return true;
-    });
-
-    if (filtered.length === 0) {
-        container.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 text-center text-xs text-slate-400">Tidak ada riwayat transaksi pada filter ini.</div>`;
-        return;
+        filterWallet.innerHTML = walletOptions;
+        editDari.innerHTML = editOptions;
+        editKe.innerHTML = editOptions;
     }
 
-    filtered.sort((a, b) => new Date(findVal(b, ['tanggal', 'date'])) - new Date(findVal(a, ['tanggal', 'date'])));
-
-    filtered.forEach(t => {
-        const txId = findVal(t, ['transactionid', 'txid', 'id']);
-        const jumlah = Number(findVal(t, ['jumlah', 'amount', 'nominal'])) || 0;
-        const jumlahFmt = jumlah.toLocaleString('id-ID');
-        const tipe = String(findVal(t, ['tipe', 'type']) || '');
-        const kategori = String(findVal(t, ['kategori', 'category']) || '');
-        const dariWallet = String(findVal(t, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']) || '');
-        const keWallet = String(findVal(t, ['kowallet', 'kewallet', 'towallet']) || '');
+    function initFilterOptions() {
+        const tahunSelect = document.getElementById("filterTahun");
+        const bulanSelect = document.getElementById("filterBulan");
         
-        let rawTanggal = findVal(t, ['tanggal', 'date']);
-        let tanggal = String(rawTanggal).trim();
-        if (tanggal.includes('T')) tanggal = tanggal.split('T')[0];
-        else if (tanggal.length >= 10) tanggal = tanggal.substring(0, 10);
+        const currentYear = new Date().getFullYear();
+        let tahunHTML = "";
+        for (let y = currentYear; y >= currentYear - 3; y--) {
+            tahunHTML += `<option value="${y}">${y}</option>`;
+        }
+        tahunSelect.innerHTML = tahunHTML;
 
-        const catatan = String(findVal(t, ['catatan', 'note', 'keterangan']) || '');
-        const txCurr = String(findVal(t, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
+        const months = [
+            {val: "01", name: "Januari"}, {val: "02", name: "Februari"},
+            {val: "03", name: "Maret"}, {val: "04", name: "April"},
+            {val: "05", name: "Mei"}, {val: "06", name: "Juni"},
+            {val: "07", name: "Juli"}, {val: "08", name: "Agustus"},
+            {val: "09", name: "September"}, {val: "10", name: "Oktober"},
+            {val: "11", name: "November"}, {val: "12", name: "Desember"}
+        ];
 
-        const isIncome = tipe.toLowerCase() === 'income';
-        const isTransfer = tipe.toLowerCase() === 'transfer';
-        let colorClass = 'text-rose-600', sign = '-';
-        if (isIncome) { colorClass = 'text-emerald-600'; sign = '+'; }
-        if (isTransfer) { colorClass = 'text-blue-600'; sign = '•'; }
+        const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+        let bulanHTML = `<option value="Semua">Semua Bulan</option>`;
+        months.forEach(m => {
+            bulanHTML += `<option value="${m.val}" ${m.val === currentMonth ? 'selected' : ''}>${m.name}</option>`;
+        });
+        bulanSelect.innerHTML = bulanHTML;
+    }
 
-        const symbol = txCurr === 'USD' ? '$' : 'Rp';
-        const txDataJson = JSON.stringify(t).replace(/'/g, "&apos;");
+    function filterAndRender() {
+        const thn = document.getElementById("filterTahun").value;
+        const bln = document.getElementById("filterBulan").value;
+        const jenis = document.getElementById("filterJenis").value;
+        const wallet = document.getElementById("filterWallet").value;
 
-        container.innerHTML += `
-            <div class="bg-white p-3.5 rounded-xl shadow-sm border border-slate-200 flex justify-between items-center text-sm">
-                <div class="space-y-0.5 max-w-[60%]">
-                    <div class="font-bold text-slate-800 border-b pb-0.5 border-slate-100">${kategori || tipe}</div>
-                    <div class="text-[11px] text-slate-400 font-medium leading-tight">
-                        ${tanggal} • ${dariWallet}${keWallet ? ' ➔ ' + keWallet : ''}
-                    </div>
-                    ${catatan ? `<div class="text-[11px] text-slate-500 italic truncate">${catatan}</div>` : ''}
-                </div>
-                <div class="flex items-center space-x-2">
-                    <div class="font-bold text-xs sm:text-sm ${colorClass} text-right">
-                        ${sign} ${symbol} ${jumlahFmt}
-                    </div>
-                    <div class="flex space-x-1 pl-1 border-l border-slate-100">
-                        <button onclick='openEditTxModal(${txDataJson})' class="p-1 bg-amber-50 text-amber-600 rounded hover:bg-amber-100 transition" title="Edit">✏️</button>
-                        <button onclick="deleteTx('${txId}')" class="p-1 bg-rose-50 text-rose-600 rounded hover:bg-rose-100 transition" title="Hapus">🗑️</button>
-                    </div>
-                </div>
+        // 1. Filter Transaksi Berdasarkan Kontrol Atas
+        let filtered = allTransactions.filter(t => {
+            const [tThn, tBln] = t.tanggal.split("-");
+            const matchThn = (thn === "Semua" || tThn === thn);
+            const matchBln = (bln === "Semua" || tBln === bln);
+            const matchJenis = (jenis === "Semua" || t.tipe === jenis);
+            const matchWallet = (wallet === "Semua" || t.darivallet === wallet || t.kewallet === wallet);
+
+            return matchThn && matchBln && matchJenis && matchWallet;
+        });
+
+        renderSidebarCategories(filtered);
+        renderRightTransactions(filtered);
+    }
+
+    function renderSidebarCategories(filteredTrx) {
+        const sidebar = document.getElementById("listKategoriSidebar");
+        
+        // Hitung total per kategori
+        let catMap = {};
+        filteredTrx.forEach(t => {
+            let cat = t.kategori || "Tanpa Kategori";
+            if (!catMap[cat]) catMap[cat] = { count: 0, total: 0 };
+            catMap[cat].count++;
+            catMap[cat].total += Number(t.jumlah || 0);
+        });
+
+        let html = `
+            <div class="p-2 rounded-lg cursor-pointer transition text-xs font-medium flex justify-between items-center ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
+                <span>Semua Kategori</span>
+                <span class="text-gray-500">${filteredTrx.length}</span>
             </div>
         `;
-    });
-}
 
-// LOGIKA MODAL EDIT & DELETE TRANSAKSI
-function openEditTxModal(tx) {
-    const txId = findVal(tx, ['transactionid', 'txid', 'id']);
-    let rawTanggal = findVal(tx, ['tanggal', 'date']);
-    let tanggal = String(rawTanggal).trim();
-    if (tanggal.includes('T')) tanggal = tanggal.split('T')[0];
-    else if (tanggal.length >= 10) tanggal = tanggal.substring(0, 10);
+        for (const [catName, data] of Object.entries(catMap)) {
+            const isActive = (selectedCategory === catName);
+            html += `
+                <div class="p-2 rounded-lg cursor-pointer transition text-xs flex justify-between items-center ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('${catName}')">
+                    <span class="truncate pr-2">${catName}</span>
+                    <span class="text-gray-500 text-[10px]">${data.count}</span>
+                </div>
+            `;
+        }
 
-    const tipe = findVal(tx, ['tipe', 'type']);
-    const dariWallet = findVal(tx, ['darivallet', 'dariwald', 'fromwallet', 'darawallet']);
-    const keWallet = findVal(tx, ['kowallet', 'kewallet', 'towallet']);
-    const kategori = findVal(tx, ['kategori', 'category']);
-    const jumlah = findVal(tx, ['jumlah', 'amount', 'nominal']);
-    const catatan = findVal(tx, ['catatan', 'note', 'keterangan']);
-
-    document.getElementById('editTxId').value = txId;
-    document.getElementById('editTxDate').value = tanggal;
-    document.getElementById('editTxType').value = tipe;
-    document.getElementById('editTxAmount').value = jumlah;
-    document.getElementById('editTxNote').value = catatan || '';
-
-    populateEditWallets(dariWallet, keWallet);
-    populateEditCategories(tipe, kategori);
-    handleEditTypeChange();
-
-    document.getElementById('editTxModal').classList.remove('hidden');
-}
-
-function handleEditTypeChange() {
-    const type = document.getElementById('editTxType').value;
-    const editWrapperKe = document.getElementById('editWrapperKe');
-    const editWrapperKategori = document.getElementById('editWrapperKategori');
-    const editLabelDari = document.getElementById('editLabelDari');
-
-    if (type === 'Income') {
-        editLabelDari.innerText = 'Ke Wallet (Tujuan)';
-        editWrapperKe.classList.add('hidden');
-        editWrapperKategori.classList.remove('hidden');
-    } else if (type === 'Expense') {
-        editLabelDari.innerText = 'Dari Wallet (Sumber)';
-        editWrapperKe.classList.add('hidden');
-        editWrapperKategori.classList.remove('hidden');
-    } else if (type === 'Transfer') {
-        editLabelDari.innerText = 'Dari Wallet';
-        editWrapperKe.classList.remove('hidden');
-        editWrapperKategori.classList.add('hidden');
+        sidebar.innerHTML = html;
     }
 
-    populateEditCategories(type, document.getElementById('editTxCategory').value);
-}
-
-function populateEditWallets(selectedFrom, selectedTo) {
-    const editFrom = document.getElementById('editTxFrom');
-    const editTo = document.getElementById('editTxTo');
-    editFrom.innerHTML = ''; editTo.innerHTML = '';
-
-    const sortedWallets = [...riwayatData.wallets]
-        .filter(w => findVal(w, ['namawallet', 'wallet', 'nama']))
-        .sort((a, b) => String(findVal(a, ['namawallet', 'wallet', 'nama'])).localeCompare(String(findVal(b, ['namawallet', 'wallet', 'nama']))));
-
-    sortedWallets.forEach(w => {
-        const name = findVal(w, ['namawallet', 'wallet', 'nama']);
-        const curr = String(findVal(w, ['matauang', 'currency', 'curr']) || 'IDR').toUpperCase();
-        
-        const isSelectedFrom = name.toLowerCase() === String(selectedFrom).toLowerCase();
-        const isSelectedTo = name.toLowerCase() === String(selectedTo).toLowerCase();
-
-        editFrom.innerHTML += `<option value="${name}" ${isSelectedFrom ? 'selected' : ''}>${name} (${curr})</option>`;
-        editTo.innerHTML += `<option value="${name}" ${isSelectedTo ? 'selected' : ''}>${name} (${curr})</option>`;
-    });
-}
-
-function populateEditCategories(type, selectedCat) {
-    const select = document.getElementById('editTxCategory');
-    select.innerHTML = '';
-
-    if (type === 'Transfer') {
-        select.innerHTML = `<option value="Transfer" selected>Transfer</option>`;
-        return;
-    }
-
-    const filteredCategories = riwayatData.categories
-        .filter(c => String(findVal(c, ['tipe', 'type'])).toLowerCase() === type.toLowerCase())
-        .sort((a, b) => String(findVal(a, ['namakategori', 'kategori', 'category', 'nama'])).localeCompare(String(findVal(b, ['namakategori', 'kategori', 'category', 'nama']))));
-
-    filteredCategories.forEach(c => {
-        const name = findVal(c, ['namakategori', 'kategori', 'category', 'nama']);
-        const isSelected = name.toLowerCase() === String(selectedCat).toLowerCase();
-        select.innerHTML += `<option value="${name}" ${isSelected ? 'selected' : ''}>${name}</option>`;
-    });
-}
-
-function closeEditTxModal() {
-    document.getElementById('editTxModal').classList.add('hidden');
-}
-
-async function submitEditTransaction(e) {
-    e.preventDefault();
-    const type = document.getElementById('editTxType').value;
-    const data = {
-        action: 'editTransaction',
-        transactionid: document.getElementById('editTxId').value,
-        tanggal: document.getElementById('editTxDate').value,
-        tipe: type,
-        dariWallet: document.getElementById('editTxFrom').value,
-        keWallet: type === 'Transfer' ? document.getElementById('editTxTo').value : '',
-        kategori: type === 'Transfer' ? 'Transfer' : document.getElementById('editTxCategory').value,
-        jumlah: document.getElementById('editTxAmount').value,
-        catatan: document.getElementById('editTxNote').value
+    // Fungsi global agar bisa dipanggil dari onclick HTML sidebar
+    window.selectCategory = function(catName) {
+        selectedCategory = catName;
+        filterAndRender();
     };
 
-    try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify(data) });
-        const result = await res.json();
-        if (result.success) {
-            closeEditTxModal();
-            loadRiwayatData();
-        } else {
-            alert('Gagal mengedit transaksi: ' + (result.message || 'Kesalahan Server'));
-        }
-    } catch (err) {
-        console.error(err);
-        alert('Terjadi kesalahan koneksi.');
-    }
-}
+    function renderRightTransactions(filteredTrx) {
+        const container = document.getElementById("listTransaksiContainer");
+        const counter = document.getElementById("counterTransaksi");
+        const judul = document.getElementById("judulDaftarTransaksi");
 
-async function deleteTx(id) {
-    if (!id || id === 'undefined') {
-        alert('ID Transaksi tidak valid.');
-        return;
-    }
-    if (!confirm('Yakin ingin menghapus transaksi ini?')) return;
-
-    try {
-        const res = await fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'deleteTransaction', transactionid: id }) });
-        const result = await res.json();
-        if (result.success) {
-            loadRiwayatData();
+        // Filter lanjutan jika kategori di kiri diklik
+        let finalTrx = filteredTrx;
+        if (selectedCategory !== "Semua") {
+            finalTrx = filteredTrx.filter(t => (t.kategori || "Tanpa Kategori") === selectedCategory);
+            judul.innerText = `Kategori: ${selectedCategory}`;
         } else {
-            alert('Gagal menghapus transaksi.');
+            judul.innerText = "Daftar Transaksi";
         }
-    } catch (err) {
-        console.error(err);
-        alert('Terjadi kesalahan koneksi.');
+
+        counter.innerText = `${finalTrx.length} item`;
+
+        if (finalTrx.length === 0) {
+            container.innerHTML = `<p class="text-xs text-gray-400 text-center py-6">Tidak ada transaksi ditemukan.</p>`;
+            return;
+        }
+
+        let html = "";
+        finalTrx.forEach(t => {
+            const isExpense = t.tipe === "Expense";
+            const isTransfer = t.tipe === "Transfer";
+            const colorClass = isExpense ? "text-rose-600" : (isTransfer ? "text-blue-600" : "text-emerald-600");
+            const sign = isExpense ? "- " : (isTransfer ? "" : "+ ");
+            const nominal = Number(t.jumlah).toLocaleString('id-ID');
+            
+            // Format ringkas: Tanggal, Catatan, Nilai
+            html += `
+                <div class="p-3 bg-gray-50 hover:bg-gray-100 border rounded-xl flex justify-between items-center cursor-pointer transition" onclick='openDetailModal(${JSON.stringify(t)})'>
+                    <div>
+                        <div class="text-[11px] text-gray-400 mb-0.5">${t.tanggal} • <span class="font-medium text-gray-600">${t.kategori || 'Umum'}</span></div>
+                        <div class="text-sm font-medium text-gray-800">${t.catatan || '(Tanpa Catatan)'}</div>
+                        ${isTransfer ? `<div class="text-[10px] text-blue-500 mt-0.5">${t.darivallet} → ${t.kewallet}</div>` : `<div class="text-[10px] text-gray-500 mt-0.5">${t.darivallet || t.kewallet || ''}</div>`}
+                    </div>
+                    <div class="text-right">
+                        <div class="text-sm font-bold ${colorClass}">${sign}Rp ${nominal}</div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = html;
     }
-}
+
+    // Modal Handler & Logic Edit/Delete
+    window.openDetailModal = function(trx) {
+        document.getElementById("editId").value = trx.transactionid;
+        document.getElementById("editTanggal").value = trx.tanggal;
+        document.getElementById("editTipe").value = trx.tipe;
+        document.getElementById("editJumlah").value = trx.jumlah;
+        document.getElementById("editCatatan").value = trx.catatan || "";
+        
+        if(trx.darivallet) document.getElementById("editDariWallet").value = trx.darivallet;
+        if(trx.kewallet) document.getElementById("editKeWallet").value = trx.kewallet;
+
+        const catSelect = document.getElementById("editKategori");
+        catSelect.innerHTML = allCategories.map(c => `<option value="${c.nama}" ${c.nama === trx.kategori ? 'selected' : ''}>${c.nama}</option>`).join('');
+
+        setFormEnabled(false);
+        document.getElementById("modalTransaksi").classList.remove("hidden");
+    };
+
+    document.getElementById("btnModalClose").addEventListener("click", () => {
+        document.getElementById("modalTransaksi").classList.add("hidden");
+    });
+
+    document.getElementById("btnModalEdit").addEventListener("click", () => {
+        setFormEnabled(true); // Aktifkan input agar bisa diedit
+    });
+
+    function setFormEnabled(enabled) {
+        const fields = ["editTanggal", "editTipe", "editJumlah", "editDariWallet", "editKeWallet", "editKategori", "editCatatan"];
+        fields.forEach(id => {
+            const el = document.getElementById(id);
+            if(el) {
+                el.disabled = !enabled;
+                if(enabled) {
+                    el.classList.remove("bg-gray-100");
+                    el.classList.add("bg-white");
+                } else {
+                    el.classList.add("bg-gray-100");
+                    el.classList.remove("bg-white");
+                }
+            }
+        });
+
+        const actionContainer = document.getElementById("actionContainer");
+        if(enabled) {
+            actionContainer.classList.remove("hidden");
+        } else {
+            actionContainer.classList.add("hidden");
+        }
+    }
+
+    // Tombol Delete di Modal
+    document.getElementById("btnModalDelete").addEventListener("click", async () => {
+        const id = document.getElementById("editId").value;
+        if(confirm("Yakin ingin menghapus transaksi ini?")) {
+            try {
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'deleteTransaction', transactionid: id })
+                });
+                const result = await res.json();
+                if(result.success) {
+                    alert("Transaksi berhasil dihapus!");
+                    document.getElementById("modalTransaksi").classList.add("hidden");
+                    loadData();
+                } else {
+                    alert("Gagal menghapus: " + result.message);
+                }
+            } catch(e) {
+                console.error(e);
+                alert("Terjadi kesalahan jaringan.");
+            }
+        }
+    });
+
+    // Event listener untuk Submit Form Edit Transaksi
+    document.getElementById("formDetailTransaksi").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        
+        const id = document.getElementById("editId").value;
+        const tanggal = document.getElementById("editTanggal").value;
+        const tipe = document.getElementById("editTipe").value;
+        const jumlah = document.getElementById("editJumlah").value;
+        const dariWallet = document.getElementById("editDariWallet").value;
+        const keWallet = document.getElementById("editKeWallet").value;
+        const kategori = document.getElementById("editKategori").value;
+        const catatan = document.getElementById("editCatatan").value;
+
+        try {
+            const res = await fetch(API_URL, {
+                method: 'POST',
+                body: JSON.stringify({
+                    action: 'editTransaction',
+                    transactionid: id,
+                    tanggal: tanggal,
+                    tipe: tipe,
+                    darivallet: dariWallet,
+                    kewallet: keWallet,
+                    kategori: kategori,
+                    jumlah: jumlah,
+                    catatan: catatan
+                })
+            });
+            const result = await res.json();
+            if(result.success) {
+                alert("Transaksi berhasil diperbarui!");
+                document.getElementById("modalTransaksi").classList.add("hidden");
+                loadData(); // Reload data terbaru
+            } else {
+                alert("Gagal memperbarui: " + result.message);
+            }
+        } catch(err) {
+            console.error(err);
+            alert("Terjadi kesalahan jaringan saat menyimpan perubahan.");
+        }
+    });
+});
