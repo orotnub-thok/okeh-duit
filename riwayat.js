@@ -19,11 +19,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Fetch Transaksi, Wallet, dan Kategori secara paralel
+            // Mengubah pemanggilan menjadi POST agar tidak terkena blokir CORS Google Apps Script
             const [resTrx, resWallet, resCat] = await Promise.all([
-                fetch(`${API_URL}?action=getTransactions`).then(res => res.json()),
-                fetch(`${API_URL}?action=getWallets`).then(res => res.json()),
-                fetch(`${API_URL}?action=getCategories`).then(res => res.json())
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getTransactions' })
+                }).then(res => res.json()),
+                
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getWallets' })
+                }).then(res => res.json()),
+                
+                fetch(API_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ action: 'getCategories' })
+                }).then(res => res.json())
             ]);
 
             allTransactions = resTrx.data || [];
