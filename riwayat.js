@@ -19,28 +19,27 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
+            // Menggunakan URLSearchParams agar terbaca sebagai parameter standar oleh doPost di Apps Script
+            const fetchAction = async (actionName) => {
+                const params = new URLSearchParams();
+                params.append('action', actionName);
+
+                const res = await fetch(API_URL, {
+                    method: 'POST',
+                    body: params
+                });
+                return await res.json();
+            };
+
             const [resTrx, resWallet, resCat] = await Promise.all([
-                fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getTransactions' })
-                }).then(res => res.json()),
-                
-                fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getWallets' })
-                }).then(res => res.json()),
-                
-                fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: 'getCategories' })
-                }).then(res => res.json())
+                fetchAction('getTransactions'),
+                fetchAction('getWallets'),
+                fetchAction('getCategories')
             ]);
 
-            // --- TAMBAHKAN DEBUGGING INI ---
             console.log("Response Transaksi dari Server:", resTrx);
             console.log("Response Wallet dari Server:", resWallet);
             console.log("Response Kategori dari Server:", resCat);
-            // ---------------------------------
 
             allTransactions = resTrx.data || [];
             allWallets = resWallet.data || [];
