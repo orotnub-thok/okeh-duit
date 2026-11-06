@@ -115,30 +115,38 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderSidebarCategories(filteredTrx) {
         const sidebar = document.getElementById("listKategoriSidebar");
         
-        // Hitung total per kategori
+        // Hitung total item dan total rupiah per kategori
         let catMap = {};
+        let totalSemuaNominal = 0;
+
         filteredTrx.forEach(t => {
             let cat = (!t.kategori || t.kategori === "undefined") ? "Tanpa Kategori" : t.kategori;
+            const jumlah = Number(t.jumlah || 0);
+
             if (!catMap[cat]) catMap[cat] = { count: 0, total: 0 };
             catMap[cat].count++;
-            catMap[cat].total += Number(t.jumlah || 0);
+            catMap[cat].total += jumlah;
+
+            totalSemuaNominal += jumlah;
         });
 
-        // "Semua Kategori" dengan jumlah item di bawah nama kategorinya
+        // Opsi "Semua Kategori" dengan format nama (item) & nilai total di bawah
         let html = `
             <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
-                <span class="font-medium">Semua Kategori</span>
-                <span class="text-gray-400 text-[10px]">${filteredTrx.length} item</span>
+                <span class="font-medium">Semua Kategori (${filteredTrx.length})</span>
+                <span class="text-emerald-700 text-[11px] font-semibold">Rp ${totalSemuaNominal.toLocaleString('id-ID')}</span>
             </div>
         `;
 
+        // Daftar tiap-tiap kategori
         for (const [catName, data] of Object.entries(catMap)) {
             const isActive = (selectedCategory === catName);
-            // Nama kategori di atas, jumlah item diposisikan di bawahnya secara vertikal
+            const totalRp = data.total.toLocaleString('id-ID');
+
             html += `
                 <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${isActive ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('${catName}')">
-                    <span class="truncate font-medium">${catName}</span>
-                    <span class="text-gray-400 text-[10px]">${data.count} item</span>
+                    <span class="truncate font-medium">${catName} (${data.count})</span>
+                    <span class="text-gray-500 text-[11px] font-semibold">Rp ${totalRp}</span>
                 </div>
             `;
         }
