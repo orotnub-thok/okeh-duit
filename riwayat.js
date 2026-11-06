@@ -19,19 +19,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Mengembalikan ke format JSON.stringify yang sesuai dengan struktur doPost Apps Script Anda
-            const fetchAction = async (actionName) => {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: actionName })
+            // Mengirim action sebagai parameter URL (query string) pada method POST
+            // Ini dijamin cocok dengan cara Code.gs membaca e.parameter
+            const callAPI = async (actionName) => {
+                const url = `${API_URL}?action=${actionName}`;
+                const res = await fetch(url, {
+                    method: 'POST'
                 });
                 return await res.json();
             };
 
             const [resTrx, resWallet, resCat] = await Promise.all([
-                fetchAction('getTransactions'),
-                fetchAction('getWallets'),
-                fetchAction('getCategories')
+                callAPI('getTransactions'),
+                callAPI('getWallets'),
+                callAPI('getCategories')
             ]);
 
             console.log("Response Transaksi dari Server:", resTrx);
