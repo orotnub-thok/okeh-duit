@@ -19,7 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Mengubah pemanggilan menjadi POST agar tidak terkena blokir CORS Google Apps Script
             const [resTrx, resWallet, resCat] = await Promise.all([
                 fetch(API_URL, {
                     method: 'POST',
@@ -36,6 +35,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({ action: 'getCategories' })
                 }).then(res => res.json())
             ]);
+
+            // --- TAMBAHKAN DEBUGGING INI ---
+            console.log("Response Transaksi dari Server:", resTrx);
+            console.log("Response Wallet dari Server:", resWallet);
+            console.log("Response Kategori dari Server:", resCat);
+            // ---------------------------------
 
             allTransactions = resTrx.data || [];
             allWallets = resWallet.data || [];
