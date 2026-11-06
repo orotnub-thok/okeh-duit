@@ -17,13 +17,12 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("filterWallet").addEventListener("change", filterAndRender);
     document.getElementById("btnRefresh").addEventListener("click", loadData);
 
-    async function loadData() {
+  async function loadData() {
         try {
-            // Mengirim action di dalam body JSON, persis seperti yang diminta Code.gs (e.postData.contents)
             const callAPI = async (actionName) => {
-                const res = await fetch(API_URL, {
-                    method: 'POST',
-                    body: JSON.stringify({ action: actionName })
+                // Mengirim action lewat parameter URL POST
+                const res = await fetch(`${API_URL}?action=${actionName}`, {
+                    method: 'POST'
                 });
                 return await res.json();
             };
