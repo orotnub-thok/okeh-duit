@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let allWallets = [];
     let allCategories = [];
     let selectedCategory = "Semua"; // Default tampilkan semua kategori
+    let kategoriKeyword = ""; // Keyword pencarian kategori
 
     // Inisialisasi dropdown filter Tahun & Bulan
     initFilterOptions();
@@ -16,6 +17,15 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("filterJenis").addEventListener("change", filterAndRender);
     document.getElementById("filterWallet").addEventListener("change", filterAndRender);
     document.getElementById("btnRefresh").addEventListener("click", loadData);
+
+    // Event listener untuk pencarian kategori di sidebar
+    const searchCatInput = document.getElementById("searchKategori");
+    if (searchCatInput) {
+        searchCatInput.addEventListener("input", (e) => {
+            kategoriKeyword = e.target.value.toLowerCase();
+            filterAndRender();
+        });
+    }
 
     // Event listener untuk mengubah layout wallet secara real-time saat dropdown Jenis diubah di modal
     const editTipeSelect = document.getElementById("editTipe");
@@ -112,7 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const jenis = document.getElementById("filterJenis").value;
         const wallet = document.getElementById("filterWallet").value;
 
-        // Filter Transaksi Berdasarkan Kontrol Atas
+        // Filter Transaksi Berdasarkan Kontrol Atas (Pertahankan urutan asli dari array/sheet)
         let filtered = allTransactions.filter(t => {
             const [tThn, tBln] = t.tanggal.split("-");
             const matchThn = (thn === "Semua" || tThn === thn);
@@ -144,16 +154,29 @@ document.addEventListener("DOMContentLoaded", () => {
             totalSemuaNominal += jumlah;
         });
 
-        // Opsi "Semua Kategori"
-        let html = `
-            <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
-                <span class="font-medium">Semua Kategori (${filteredTrx.length})</span>
-                <span class="text-emerald-700 text-[11px] font-semibold">Rp ${totalSemuaNominal.toLocaleString('id-ID')}</span>
-            </div>
-        `;
+        // Opsi "Semua Kategori" (Selalu tampil di atas jika cocok dengan keyword pencarian)
+        let html = "";
+        const showSemua = "semua kategori".includes(kategoriKeyword);
+        if (showSemua) {
+            html += `
+                <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
+                    <span class="font-medium">Semua Kategori (${filteredTrx.length})</span>
+                    <span class="text-emerald-700 text-[11px] font-semibold">Rp ${totalSemuaNominal.toLocaleString('id-ID')}</span>
+                </div>
+            `;
+        }
 
-        // Daftar tiap-tiap kategori
-        for (const [catName, data] of Object.entries(catMap)) {
+        // Urutkan nama kategori secara Ascending (Abjad A-Z)
+        const sortedCategoryNames = Object.keys(catMap).sort((a, b) => a.localeCompare(b));
+
+        // Render daftar kategori yang sudah di-sort dan difilter pencarian
+        sortedCategoryNames.forEach(catName => {
+            // Jika ada keyword pencarian, abaikan kategori yang tidak mengandung keyword
+            if (kategoriKeyword && !catName.toLowerCase().includes(kategoriKeyword)) {
+                return;
+            }
+
+            const data = catMap[catName];
             const isActive = (selectedCategory === catName);
             const totalRp = data.total.toLocaleString('id-ID');
 
@@ -163,6 +186,10 @@ document.addEventListener("DOMContentLoaded", () => {
                     <span class="text-gray-500 text-[11px] font-semibold">Rp ${totalRp}</span>
                 </div>
             `;
+        });
+
+        if (!html) {
+            html = `<p class="text-[11px] text-gray-400 text-center py-4">Kategori tidak ditemukan.</p>`;
         }
 
         sidebar.innerHTML = html;
@@ -199,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         let html = "";
+        // Render sesuai urutan asli data dari sheet (tanpa dibalik / .reverse())
         finalTrx.forEach(t => {
             const isExpense = t.tipe === "Expense";
             const isTransfer = t.tipe === "Transfer";
@@ -252,7 +280,6 @@ document.addEventListener("DOMContentLoaded", () => {
         if (editJumlah) editJumlah.value = trx.jumlah;
         if (editCatatan) editCatatan.value = trx.catatan || "";
         
-        // Atur tampilan field Ke Wallet berdasarkan tipe transaksi saat modal dibuka
         const wrapperKe = document.getElementById("wrapperKeWallet");
         const labelDari = document.getElementById("labelDariWallet");
         if (trx.tipe === "Transfer") {
@@ -364,10 +391,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const tipe = document.getElementById("editTipe").value;
             const jumlah = document.getElementById("editJumlah").value;
             const dariWallet = document.getElementById("editDariWallet").value;
-            
-            // PENTING: Jika bukan Transfer, kosongkan nilai keWallet agar tidak ikut tersimpan
             const keWallet = (tipe === "Transfer") ? document.getElementById("editKeWallet").value : "";
-            
             const kategori = document.getElementById("editKategori").value;
             const catatan = document.getElementById("editCatatan").value;
 
