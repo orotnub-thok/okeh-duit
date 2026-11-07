@@ -17,6 +17,23 @@ document.addEventListener("DOMContentLoaded", () => {
     document.getElementById("filterWallet").addEventListener("change", filterAndRender);
     document.getElementById("btnRefresh").addEventListener("click", loadData);
 
+    // Event listener untuk mengubah layout wallet secara real-time saat dropdown Jenis diubah di modal
+    const editTipeSelect = document.getElementById("editTipe");
+    if (editTipeSelect) {
+        editTipeSelect.addEventListener("change", function() {
+            const wrapperKe = document.getElementById("wrapperKeWallet");
+            const labelDari = document.getElementById("labelDariWallet");
+            
+            if (this.value === "Transfer") {
+                if (wrapperKe) wrapperKe.classList.remove("hidden");
+                if (labelDari) labelDari.innerText = "Dari Wallet";
+            } else {
+                if (wrapperKe) wrapperKe.classList.add("hidden");
+                if (labelDari) labelDari.innerText = "Wallet";
+            }
+        });
+    }
+
     async function loadData() {
         try {
             const res = await fetch(API_URL, {
@@ -336,7 +353,6 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    // Event listener untuk Submit Form Edit Transaksi
     // Event listener untuk Submit Form Edit Transaksi
     const formDetail = document.getElementById("formDetailTransaksi");
     if (formDetail) {
