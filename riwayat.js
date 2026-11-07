@@ -225,8 +225,19 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
+        // --- URUTKAN BERDASARKAN USULAN BAPAK ---
+        // 1. Tanggal DESC (Terbaru di atas)
+        // 2. Jika Tanggal sama, urutkan berdasarkan urutan baris sheet / ID dibalik (yang di bawah/terakhir diinput naik ke atas)
+        finalTrx.sort((a, b) => {
+            // Bandingkan tanggal secara DESC
+            if (b.tanggal !== a.tanggal) {
+                return b.tanggal.localeCompare(a.tanggal);
+            }
+            // Jika tanggal sama, bandingkan berdasarkan ID (DESC: ID yang lebih besar/baru di bawah, ditarik ke atas)
+            return String(b.transactionid).localeCompare(String(a.transactionid));
+        });
+
         let html = "";
-        // Render sesuai urutan asli data dari sheet (tanpa dibalik / .reverse())
         finalTrx.forEach(t => {
             const isExpense = t.tipe === "Expense";
             const isTransfer = t.tipe === "Transfer";
