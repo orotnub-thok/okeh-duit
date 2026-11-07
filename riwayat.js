@@ -235,6 +235,17 @@ document.addEventListener("DOMContentLoaded", () => {
         if (editJumlah) editJumlah.value = trx.jumlah;
         if (editCatatan) editCatatan.value = trx.catatan || "";
         
+        // Atur tampilan field Ke Wallet berdasarkan tipe transaksi saat modal dibuka
+        const wrapperKe = document.getElementById("wrapperKeWallet");
+        const labelDari = document.getElementById("labelDariWallet");
+        if (trx.tipe === "Transfer") {
+            if (wrapperKe) wrapperKe.classList.remove("hidden");
+            if (labelDari) labelDari.innerText = "Dari Wallet";
+        } else {
+            if (wrapperKe) wrapperKe.classList.add("hidden");
+            if (labelDari) labelDari.innerText = "Wallet";
+        }
+
         if(trx.darivallet) {
             const el = document.getElementById("editDariWallet");
             if(el) el.value = trx.darivallet;
