@@ -337,6 +337,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Event listener untuk Submit Form Edit Transaksi
+    // Event listener untuk Submit Form Edit Transaksi
     const formDetail = document.getElementById("formDetailTransaksi");
     if (formDetail) {
         formDetail.addEventListener("submit", async (e) => {
@@ -347,7 +348,10 @@ document.addEventListener("DOMContentLoaded", () => {
             const tipe = document.getElementById("editTipe").value;
             const jumlah = document.getElementById("editJumlah").value;
             const dariWallet = document.getElementById("editDariWallet").value;
-            const keWallet = document.getElementById("editKeWallet").value;
+            
+            // PENTING: Jika bukan Transfer, kosongkan nilai keWallet agar tidak ikut tersimpan
+            const keWallet = (tipe === "Transfer") ? document.getElementById("editKeWallet").value : "";
+            
             const kategori = document.getElementById("editKategori").value;
             const catatan = document.getElementById("editCatatan").value;
 
