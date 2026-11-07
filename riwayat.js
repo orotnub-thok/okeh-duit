@@ -19,7 +19,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function loadData() {
         try {
-            // Backend Apps Script menggunakan action 'getData' untuk mengambil semuanya sekaligus
             const res = await fetch(API_URL, {
                 method: 'POST',
                 body: JSON.stringify({ action: 'getData' })
@@ -53,7 +52,6 @@ document.addEventListener("DOMContentLoaded", () => {
         let editOptions = ``;
 
         allWallets.forEach(w => {
-            // Menggunakan w.namawallet sesuai struktur dari Backend GAS
             walletOptions += `<option value="${w.namawallet}">${w.namawallet}</option>`;
             editOptions += `<option value="${w.namawallet}">${w.namawallet}</option>`;
         });
@@ -97,7 +95,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const jenis = document.getElementById("filterJenis").value;
         const wallet = document.getElementById("filterWallet").value;
 
-        // 1. Filter Transaksi Berdasarkan Kontrol Atas
+        // Filter Transaksi Berdasarkan Kontrol Atas
         let filtered = allTransactions.filter(t => {
             const [tThn, tBln] = t.tanggal.split("-");
             const matchThn = (thn === "Semua" || tThn === thn);
@@ -115,7 +113,6 @@ document.addEventListener("DOMContentLoaded", () => {
     function renderSidebarCategories(filteredTrx) {
         const sidebar = document.getElementById("listKategoriSidebar");
         
-        // Hitung total item dan total rupiah per kategori
         let catMap = {};
         let totalSemuaNominal = 0;
 
@@ -130,7 +127,7 @@ document.addEventListener("DOMContentLoaded", () => {
             totalSemuaNominal += jumlah;
         });
 
-        // Opsi "Semua Kategori" dengan format nama (item) & nilai total di bawah
+        // Opsi "Semua Kategori"
         let html = `
             <div class="p-2.5 rounded-lg cursor-pointer transition text-xs flex flex-col space-y-0.5 ${selectedCategory === 'Semua' ? 'bg-emerald-100 text-emerald-800 font-bold' : 'hover:bg-gray-100 text-gray-700'}" onclick="selectCategory('Semua')">
                 <span class="font-medium">Semua Kategori (${filteredTrx.length})</span>
@@ -154,7 +151,6 @@ document.addEventListener("DOMContentLoaded", () => {
         sidebar.innerHTML = html;
     }
 
-    // Fungsi global agar bisa dipanggil dari onclick HTML sidebar
     window.selectCategory = function(catName) {
         selectedCategory = catName;
         filterAndRender();
@@ -165,7 +161,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const counter = document.getElementById("counterTransaksi");
         const judul = document.getElementById("judulDaftarTransaksi");
 
-        // Filter lanjutan jika kategori di kiri diklik
         let finalTrx = filteredTrx;
         if (selectedCategory !== "Semua") {
             finalTrx = filteredTrx.filter(t => {
@@ -196,7 +191,6 @@ document.addEventListener("DOMContentLoaded", () => {
             
             const kategoriNama = (!t.kategori || t.kategori === "undefined") ? "Umum" : t.kategori;
             
-            // Format wallet secara vertikal
             let walletInfo = "";
             if (isTransfer) {
                 const dariW = t.darivallet || "-";
@@ -206,25 +200,17 @@ document.addEventListener("DOMContentLoaded", () => {
                 walletInfo = t.darivallet || t.kewallet || "-";
             }
             
-            // Susunan vertikal murni dari atas ke bawah: Tanggal -> Kategori -> Wallet -> Nilai (Tanpa Catatan)
             html += `
                 <div class="p-3.5 bg-gray-50 hover:bg-gray-100 border rounded-xl cursor-pointer transition flex flex-col space-y-1.5" onclick='openDetailModal(${JSON.stringify(t)})'>
-                    <!-- 1. Tanggal -->
                     <div class="text-[11px] text-gray-400 font-medium">
                         ${t.tanggal}
                     </div>
-
-                    <!-- 2. Kategori -->
                     <div class="text-xs font-semibold text-gray-700">
                         ${kategoriNama}
                     </div>
-
-                    <!-- 3. Wallet -->
                     <div class="text-xs text-gray-500 font-medium">
                         ${walletInfo}
                     </div>
-
-                    <!-- 4. Nilai (Nominal) di bawah wallet -->
                     <div class="text-sm font-bold ${colorClass} pt-1">
                         ${sign}Rp ${nominal}
                     </div>
@@ -278,7 +264,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const btnEdit = document.getElementById("btnModalEdit");
     if (btnEdit) {
         btnEdit.addEventListener("click", () => {
-            setFormEnabled(true); // Aktifkan input agar bisa diedit
+            setFormEnabled(true);
         });
     }
 
@@ -317,7 +303,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 try {
                     const res = await fetch(API_URL, {
                         method: 'POST',
-                        body: JSON.stringify({ action: 'deleteTransaction', transactionid: id })
+                        body: JSON.stringify({ 
+                            action: 'deleteTransaction', 
+                            transactionid: id,
+                            id: id 
+                        })
                     });
                     const result = await res.json();
                     if(result.success) {
@@ -356,10 +346,13 @@ document.addEventListener("DOMContentLoaded", () => {
                     body: JSON.stringify({
                         action: 'editTransaction',
                         transactionid: id,
+                        id: id,
                         tanggal: tanggal,
                         tipe: tipe,
                         darivallet: dariWallet,
+                        dariWallet: dariWallet,
                         kewallet: keWallet,
+                        keWallet: keWallet,
                         kategori: kategori,
                         jumlah: jumlah,
                         catatan: catatan
@@ -369,7 +362,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 if(result.success) {
                     alert("Transaksi berhasil diperbarui!");
                     document.getElementById("modalTransaksi").classList.add("hidden");
-                    loadData(); // Reload data terbaru
+                    loadData();
                 } else {
                     alert("Gagal memperbarui: " + result.message);
                 }
