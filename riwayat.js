@@ -225,20 +225,13 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
 
-        // --- URUTKAN BERDASARKAN USULAN BAPAK ---
-        // 1. Tanggal DESC (Terbaru di atas)
-        // 2. Jika Tanggal sama, urutkan berdasarkan urutan baris sheet / ID dibalik (yang di bawah/terakhir diinput naik ke atas)
-        finalTrx.sort((a, b) => {
-            // Bandingkan tanggal secara DESC
-            if (b.tanggal !== a.tanggal) {
-                return b.tanggal.localeCompare(a.tanggal);
-            }
-            // Jika tanggal sama, bandingkan berdasarkan ID (DESC: ID yang lebih besar/baru di bawah, ditarik ke atas)
-            return String(b.transactionid).localeCompare(String(a.transactionid));
-        });
+        // --- URUTAN SESUAI BARIS SHEET (DIBALIK AGAR DATA TERBARU/DI BAWAH TAMPIL PALING ATAS) ---
+        // Jika ingin urutan persis seperti baris dari atas ke bawah di sheet, hapus .reverse()
+        // Karena data baru ada di bawah sheet, kita pakai .reverse() agar yang terakhir diinput muncul di teratas.
+        let sortedTrx = [...finalTrx].reverse();
 
         let html = "";
-        finalTrx.forEach(t => {
+        sortedTrx.forEach(t => {
             const isExpense = t.tipe === "Expense";
             const isTransfer = t.tipe === "Transfer";
             const colorClass = isExpense ? "text-rose-600" : (isTransfer ? "text-blue-600" : "text-emerald-600");
